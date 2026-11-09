@@ -9,6 +9,7 @@ import { DeveloperFloatingTrigger } from './components/developer/DeveloperFloati
 import { AuthModal } from './components/auth/AuthModal';
 import { CustomerMenuView } from './components/menu/CustomerMenuView';
 import { AdminMenuPanel } from './components/admin/AdminMenuPanel';
+import { WaiterModuleView } from './components/waiter/WaiterModuleView';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -130,6 +131,17 @@ export const App: React.FC = () => {
             Panel Admin
           </button>
           <button
+            onClick={() => setViewMode('waiter')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              viewMode === 'waiter'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Salón & Meseros
+          </button>
+          <button
             onClick={() => setViewMode('matrix')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
               viewMode === 'matrix'
@@ -199,6 +211,11 @@ export const App: React.FC = () => {
             config={config}
             currentPlan={currentPlan}
             onConfigUpdated={(newCfg) => setConfig(newCfg)}
+          />
+        ) : viewMode === 'waiter' ? (
+          <WaiterModuleView
+            currentPlan={currentPlan}
+            waiterName="Carlos M. (Mesero)"
           />
         ) : (
           /* Vista Técnica de Matriz de Capacidades */
