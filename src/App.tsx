@@ -11,6 +11,7 @@ import { CustomerMenuView } from './components/menu/CustomerMenuView';
 import { AdminMenuPanel } from './components/admin/AdminMenuPanel';
 import { WaiterModuleView } from './components/waiter/WaiterModuleView';
 import { CashierDashboard } from './components/cashier/CashierDashboard';
+import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -29,7 +30,7 @@ import {
   Sliders,
 } from 'lucide-react';
 
-type ActiveViewMode = 'customer' | 'admin' | 'cashier' | 'waiter' | 'matrix';
+type ActiveViewMode = 'customer' | 'admin' | 'cashier' | 'waiter' | 'analytics' | 'matrix';
 
 export const App: React.FC = () => {
   const [config, setConfig] = useState<RestaurantConfig | null>(null);
@@ -154,6 +155,17 @@ export const App: React.FC = () => {
             Salón & Meseros
           </button>
           <button
+            onClick={() => setViewMode('analytics')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              viewMode === 'analytics'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            Estadísticas
+          </button>
+          <button
             onClick={() => setViewMode('matrix')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
               viewMode === 'matrix'
@@ -233,6 +245,10 @@ export const App: React.FC = () => {
           <WaiterModuleView
             currentPlan={currentPlan}
             waiterName="Carlos M. (Mesero)"
+          />
+        ) : viewMode === 'analytics' ? (
+          <AnalyticsDashboard
+            currentPlan={currentPlan}
           />
         ) : (
           /* Vista Técnica de Matriz de Capacidades */
