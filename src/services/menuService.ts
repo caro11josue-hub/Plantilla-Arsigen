@@ -6,6 +6,8 @@ import {
   onSnapshot,
   getDocs,
   setDoc,
+  updateDoc,
+  deleteDoc,
   doc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -283,3 +285,63 @@ export function subscribeToMenuItems(
     return () => {};
   }
 }
+
+/**
+ * Pausa o activa el stock de un plato en 1 toque (< 200 ms).
+ */
+export async function toggleProductAvailability(
+  itemId: string,
+  newAvailability: boolean
+): Promise<void> {
+  const itemRef = doc(db, 'menu_items', itemId);
+  await updateDoc(itemRef, {
+    isAvailable: newAvailability,
+    updatedAt: new Date().toISOString(),
+  }).catch(async () => {
+    // Si no existía en Firestore, persistir el seed modificado
+    const found = SEED_MENU_ITEMS.find((i) => i.id === itemId);
+    if (found) {
+      found.isAvailable = newAvailability;
+      await setDoc(itemRef, { ...found, isAvailable: newAvailability, updatedAt: new Date().toISOString() });
+    }
+  });
+}
+
+/**
+ * Crea o actualiza un plato en el menú.
+ */
+export async function saveMenuItem(item: MenuItem): Promise<void> {
+  const itemRef = doc(db, 'menu_items', item.id);
+  await setDoc(itemRef, {
+    ...item,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+}
+
+/**
+ * Elimina un plato del menú.
+ */
+export async function deleteMenuItem(itemId: string): Promise<void> {
+  const itemRef = doc(db, 'menu_items', itemId);
+  await deleteDoc(itemRef);
+}
+
+/**
+ * Crea o actualiza una categoría.
+ */
+export async function saveCategory(category: MenuCategory): Promise<void> {
+  const catRef = doc(db, 'categories', category.id);
+  await setDoc(catRef, {
+    ...category,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+}
+
+/**
+ * Elimina una categoría.
+ */
+export async function deleteCategory(categoryId: string): Promise<void> {
+  const catRef = doc(db, 'categories', categoryId);
+  await deleteDoc(catRef);
+}
+

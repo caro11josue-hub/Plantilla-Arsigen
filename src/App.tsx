@@ -8,6 +8,7 @@ import { DeveloperModal } from './components/developer/DeveloperModal';
 import { DeveloperFloatingTrigger } from './components/developer/DeveloperFloatingTrigger';
 import { AuthModal } from './components/auth/AuthModal';
 import { CustomerMenuView } from './components/menu/CustomerMenuView';
+import { AdminMenuPanel } from './components/admin/AdminMenuPanel';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -118,6 +119,17 @@ export const App: React.FC = () => {
             Menú Comensal
           </button>
           <button
+            onClick={() => setViewMode('admin')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              viewMode === 'admin'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            Panel Admin
+          </button>
+          <button
             onClick={() => setViewMode('matrix')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
               viewMode === 'matrix'
@@ -181,6 +193,12 @@ export const App: React.FC = () => {
             currentPlan={currentPlan}
             onLogoStealthClick={stealthTrigger.registerClick}
             awaitingSpace={stealthTrigger.awaitingSpace}
+          />
+        ) : viewMode === 'admin' ? (
+          <AdminMenuPanel
+            config={config}
+            currentPlan={currentPlan}
+            onConfigUpdated={(newCfg) => setConfig(newCfg)}
           />
         ) : (
           /* Vista Técnica de Matriz de Capacidades */
