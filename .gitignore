@@ -26,3 +26,7 @@ firestore-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Gemini / Agent local files
+.gemini/
+scratch/

@@ -1,17 +1,17 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { PlanTier, RestaurantConfig } from '../domain/models';
+import { PlanTier, RestaurantConfig, AuthorizedStaff, UserRole } from '../domain/models';
 
 const CONFIG_DOC_PATH = 'config/general';
 
 export const DEFAULT_RESTAURANT_CONFIG: RestaurantConfig = {
-  restaurantName: 'ARSIGEN GastroPOS',
+  restaurantName: 'Bistró & Leña · Fuego Sagrado',
   legalDocument: 'NIT: 901.482.119-3',
-  address: 'Calle Principal #10-20',
+  address: 'Distrito Gastronómico · Calle de las Brasas',
   phone: '+57 314 464 0776',
   currency: 'COP',
-  plan: 'start',
-  hasThematicDesign: false,
+  plan: 'business',
+  hasThematicDesign: true,
   settings: {
     suggestedTipPercentage: 10,
     receiptLegalLegend: 'Comprobante de consumo interno / No válido como factura fiscal',
@@ -20,8 +20,8 @@ export const DEFAULT_RESTAURANT_CONFIG: RestaurantConfig = {
   },
   socialLinks: {
     whatsappUrl: 'https://wa.me/573144640776',
-    googleMapsReviewUrl: '',
-    instagramUrl: '',
+    googleMapsReviewUrl: 'https://maps.google.com',
+    instagramUrl: 'https://instagram.com/bistroleña',
   },
   updatedAt: new Date().toISOString(),
 };
@@ -72,4 +72,40 @@ export async function provisionInitialRestaurant(customConfig?: Partial<Restaura
     updatedAt: new Date().toISOString(),
   };
   await setDoc(configRef, data, { merge: true });
+}
+
+/**
+ * Lista todo el personal registrado en la colección /authorized_staff.
+ */
+export async function listAuthorizedStaff(): Promise<AuthorizedStaff[]> {
+  try {
+    const staffCol = collection(db, 'authorized_staff');
+    const snap = await getDocs(staffCol);
+    return snap.docs.map((d) => d.data() as AuthorizedStaff);
+  } catch (err) {
+    console.warn('[developerService] Error al listar personal:', err);
+    return [];
+  }
+}
+
+/**
+ * Registra o actualiza un usuario en la whitelist /authorized_staff.
+ */
+export async function saveAuthorizedStaffUser(
+  email: string,
+  role: UserRole,
+  name: string,
+  active: boolean = true
+): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const staffRef = doc(db, 'authorized_staff', normalizedEmail);
+  const data: AuthorizedStaff = {
+    email: normalizedEmail,
+    role,
+    name,
+    active,
+    assignedAt: new Date().toISOString(),
+    lastLoginAt: null,
+  };
+  await setDoc(staffRef, data, { merge: true });
 }

@@ -1,23 +1,26 @@
 # 🗺️ HOJA DE RUTA Y PLAN DE IMPLEMENTACIÓN (ROADMAP)
-## Desarrollo del Motor Gastronómico ARSIGEN & Plantillas Start, Pro y Business
+## Desarrollo del Motor Gastronómico ARSIGEN & Plantilla Base
+### Plantilla Base: "Bistró & Leña · Fuego Sagrado"
 
 ---
 
 ### Control del Documento
 * **Código:** `ARS-SPEC-RDM-005`
-* **Versión:** `1.1.0` (Actualizado según Aclaraciones del Propietario)
+* **Versión:** `1.2.0` (Alineado con Iteración 1: GitHub Spec Kit, Google Auth Whitelist & Diagramas Técnicos)
 * **Estado:** Aprobado para Ejecución
-* **Fecha:** 2026-11-08
+* **Fecha:** 2026-11-09
 * **Autor:** Josué Caro (ARSIGEN SAS) & Antigravity Lead Architect
 * **Trazabilidad:** Derivado de `ARS-SPEC-SRS-001`, `ARS-SPEC-SAS-002`, `ARS-SPEC-DBS-003` y `ARS-SPEC-BRP-004`
+* **Diagramas Técnicos:** [DIAGRAM_ENTITY_RELATIONSHIP.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_ENTITY_RELATIONSHIP.md), [DIAGRAM_SEQUENCE.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_SEQUENCE.md), [DIAGRAM_FLOWCHARTS_AND_STATES.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_FLOWCHARTS_AND_STATES.md)
 
 ---
 
-## 1. Estrategia de Ejecución: "Construir una vez, empaquetar por tres"
+## 1. Estrategia Metodológica SSD (Spec-Driven Development)
 
-La hoja de ruta se rige bajo el principio de **Ingeniería Modular Acumulativa**. En lugar de construir tres proyectos aislados desde cero, desarrollaremos el **Motor Integral ARSIGEN GastroPOS** con su matriz de *Feature Flags*. 
+El proyecto se rige de forma inquebrantable bajo el ciclo de desarrollo orientado a especificaciones:
+$$\text{Especificación Formal} \longrightarrow \text{Diagramas Técnicos Visuales} \longrightarrow \text{Gobernanza con Spec Kit} \longrightarrow \text{Construcción de Código}$$
 
-Una vez que el motor esté probado al 100%, se derivarán y empaquetarán las 3 carpetas de plantillas (`start/`, `pro/`, `business/`) con sus respectivas banderas congeladas, listas para clonar y desplegar en 3 minutos por cada nuevo restaurante cliente.
+**Principio Rector:** Queda prohibida la alteración de archivos de código fuente antes de que las especificaciones, las reglas de negocio, los esquemas de base de datos y los diagramas de flujo hayan sido formalizados y aprobados.
 
 ---
 
@@ -27,125 +30,98 @@ Una vez que el motor esté probado al 100%, se derivarán y empaquetarán las 3 
 gantt
     title Cronograma de Implementación · ARSIGEN GastroPOS
     dateFormat  YYYY-MM-DD
-    section Fase 1: Arquitectura Base
-    React 19 + Tailwind v4 + Flags + Rol Desarrollador :f1, 2026-11-09, 2d
-    section Fase 2: Menú Comensal
-    Catálogo SVG + Glassmorphism + Triple Toque Inerte :f2, after f1, 3d
-    section Fase 3: Gestión Admin
-    Panel de Control + Pausa de Stock + Compresión WebP:f3, after f2, 3d
-    section Fase 4: Operación Salón
-    Módulo Meseros (3 Espacios) + Mesas + Transacciones:f4, after f3, 4d
-    section Fase 5: Hardware e Impresión
-    Driver POS-5890U-L (Inicial, Adición, Cuenta 58mm) :f5, after f4, 4d
-    section Fase 6: Estadísticas
-    Dashboard Matemático Auditado (Solo Pagadas Sin IVA):f6, after f5, 3d
-    section Fase 7: Empaquetado
-    Aprovisionamiento Dev + Start, Pro y Business      :f7, after f6, 2d
+    section Fase 0: Gobernanza & Diagramas
+    Instalación Spec Kit + Diagramas Técnicos Independientes :f0, 2026-11-09, 1d
+    section Fase 1: Arquitectura de Acceso Cerrado
+    Enrutamiento sin tabs demo + Google Auth Whitelist       :f1, after f0, 2d
+    section Fase 2: Experiencia Menú "Bistró & Leña"
+    Layout Editorial + Motion Lateral + Footer ARSIGEN      :f2, after f1, 3d
+    section Fase 3: Gestión Admin de Carta
+    CRUD Menú + Pausa Stock + Compresión WebP en Pro/Bus    :f3, after f2, 2d
+    section Fase 4: Salón con Google Auth
+    Meseros con Google + Mapa Mesas + 3 Espacios Ergonómicos:f4, after f3, 3d
+    section Fase 5: Caja e Impresión Térmica
+    Tablero Tripartito + POS-5890U-L (Inicial, Adición, Pre):f5, after f4, 3d
+    section Fase 6: Auditoría & Inmutabilidad
+    Métricas Solo Pagadas + Cierre Inmutable de Órdenes     :f6, after f5, 2d
 ```
 
 ---
 
-### FASE 1: Arquitectura Base, Core Engine y Rol de Desarrollador en Producción
-* **Objetivo:** Establecer el andamiaje técnico modular común, la autenticación de desarrollador mediante Cloud Functions y la configuración dinámica de planes.
-* **Entregables Clave:**
-  * Estructura base de React 19 + TypeScript + Vite + Tailwind CSS v4.
-  * Módulo `src/config/capabilities.ts` con la Matriz de Capacidades (`start`, `pro`, `business`).
-  * Cloud Function segura para validación de Google OAuth del Desarrollador (sin correos hardcodeados en el cliente).
-  * Panel de Desarrollador en producción para alternar planes (`start` $\leftrightarrow$ `pro` $\leftrightarrow$ `business`) y activar/desactivar banderas sin redesplegar.
-  * Conexión a Firebase con persistencia local IndexedDB multicapa activada (`persistentLocalCache`).
-* **Criterio de Aceptación (DoD):**
-  * La aplicación compila con cero advertencias en TypeScript (`tsc --noEmit`).
-  * El desarrollador puede cambiar el plan en vivo en `/config/general` y el cliente actualiza sus capacidades de inmediato.
+### FASE 0: Gobernanza de Especificaciones & Diagramación Visual Independiente
+* **Objetivo:** Establecer la base documental formal y visual que permita auditar la arquitectura sin ambigüedades.
+* **Entregables:**
+  * Actualización de los 5 documentos fundacionales (`1_SRS`, `2_SAS`, `3_DBS`, `4_BRP`, `5_ROADMAP`) a versión `1.2.0`.
+  * Publicación de los 3 documentos de diagramación técnica independiente:
+    1. `DIAGRAM_ENTITY_RELATIONSHIP.md` (Esquema de datos, tipos y restricciones).
+    2. `DIAGRAM_SEQUENCE.md` (Secuencias de Auth, Pedidos, Despacho e Impresión).
+    3. `DIAGRAM_FLOWCHARTS_AND_STATES.md` (Máquinas de estado de mesas y órdenes).
+  * Instalación de `specify-cli` (GitHub Spec Kit) y configuración del directorio `.specify/`.
 
 ---
 
-### FASE 2: Menú Digital del Comensal & Sistema de Diseño (Base Plan Start)
-* **Objetivo:** Construir la experiencia de cara al cliente público con estética *Dark Glassmorphism* ultra-rápida, limpia y minimalista.
-* **Entregables Clave:**
-  * Categorías renderizadas exclusivamente con **iconos vectoriales SVG predefinidos** (emojis prohibidos).
-  * Componentes de presentación limpios (eliminación de `badgeTag` para evitar ruido visual).
-  * Menú de solo lectura para Plan Start (sin panel de administración para el cliente y sin enlaces a Google Maps ni redes).
-  * Precios netos mostrados con IVA ya incluido (sin cálculos de impuestos).
-  * Gatillo silencioso de 3 toques en el logo (`<SecretAccessTrigger />`) sin animaciones en toques 1 y 2.
-* **Criterio de Aceptación (DoD):**
-  * El menú carga en < 800 ms (LCP verificado en Lighthouse).
-  * Toques 1 y 2 en el logo son 100% inertes; el toque 3 abre el modal de acceso del personal.
+### FASE 1: Arquitectura de Software Cerrado & Google Auth Whitelist
+* **Objetivo:** Erradicar la apariencia de demo SaaS pública; garantizar que la URL pública sea únicamente la carta digital y blindar el acceso a personal.
+* **Entregables:**
+  * Supresión total de botones de perspectiva ("Panel Admin", "Caja & POS", "Salón & Meseros", etc.) y del selector de planes en la navegación pública de `App.tsx`.
+  * Colección `/authorized_staff` en Firestore y reglas de seguridad asociadas.
+  * Flujo de inicio de sesión discreto vía Google OAuth (gatillo silencioso de 3 toques sobre el logo del restaurante).
+  * Verificación estricta de correo en servidor: si el usuario de Google no figura en `/authorized_staff`, se expulsa la sesión y se bloquea el acceso.
+  * Consola de Desarrollador protegida exclusivamente para el correo del propietario (`ACT-DEV`), permitiendo conmutar planes (`start` $\leftrightarrow$ `pro` $\leftrightarrow$ `business`) en vivo.
 
 ---
 
-### FASE 3: Panel Administrativo de Menú y Stock (Base Plan Pro)
-* **Objetivo:** Dotar al único usuario Administrador de control total e inmediato sobre su carta sin depender de soporte.
-* **Entregables Clave:**
-  * Autenticación de Administrador vía Google OAuth / Correo (**exactamente 1 usuario admin por restaurante**).
-  * Interfaz CRUD de categorías (asignación de SVG) y productos dentro del límite del plan (hasta 50 ítems en Pro).
-  * Interruptor táctil de Pausa de Stock (`isAvailable: true/false`) con propagación en menos de 200 ms.
-  * Servicio de compresión en cliente de fotos gastronómicas (reducción a WebP < 400 KB antes de subida).
-  * Enlaces a redes sociales y botón directo de reseñas en Google Maps.
-* **Criterio de Aceptación (DoD):**
-  * Un cambio de precio en el panel administrativo se refleja en el menú del comensal y del mesero en tiempo real.
-  * El campo `sortOrder` organiza la lista internamente sin mostrar números al comensal.
+### FASE 2: Experiencia Visual Menú "Bistró & Leña · Fuego Sagrado"
+* **Objetivo:** Crear una interfaz gastronómica de alto impacto sensorial, eliminando cajas cuadradas genéricas y dotándola de movimiento fluido.
+* **Entregables:**
+  * Paleta sensorial de brasas (carbón obsidiana `#0d1117`, ámbar fuego `#f59e0b`, cobre `#ea580c`).
+  * Carrusel continuo de categorías con scroll lateral suave (`scroll-snap-type: x mandatory`).
+  * Microinteracciones con transiciones de entrada y salida suaves (`cubic-bezier(0.16, 1, 0.3, 1)`).
+  * Pie de página discreto y elegante con el respaldo tecnológico de ARSIGEN y enlace a `arsigen.com`.
+  * Precios netos con IVA incluido (sin cálculos de impuestos).
 
 ---
 
-### FASE 4: Módulo de Salón, Mesas y Meseros en 3 Espacios (Base Plan Business)
-* **Objetivo:** Operación ágil en salón para toma de pedidos desde celulares o tablets de meseros (sin límite de meseros).
-* **Entregables Clave:**
-  * Login de meseros por selector de nombre + PIN numérico de 4 a 6 dígitos con rate-limiting.
-  * Mapa de mesas con perspectiva simplificada del mesero: **Vacía (Verde)** u **Ocupada (Ámbar/Rojo)**.
-  * **Cajón de comanda estructurado en 3 espacios:**
-    * *Espacio 1 (Superior):* Barra de búsqueda con autocompletado en tiempo real.
-    * *Espacio 2 (Central):* Lista de productos seleccionados con modificadores de cantidad (+ / -) y notas de preparación (*"sin cebolla"*).
-    * *Espacio 3 (Inferior):* Selector horizontal de categorías SVG para exploración rápida.
-  * Creación atómica de pedidos en Firestore mediante transacciones para evitar colisiones de mesa.
-  * Función de "Adición de platos" (rondas) sobre mesas ocupadas y transferencia de mesas vacías.
-  * Registro explícito de timestamps: `createdAt` al enviar la comanda.
-* **Criterio de Aceptación (DoD):**
-  * El mesero no puede ver precios administrativos ni tiene permisos para cobrar o cancelar pedidos.
-  * Dos meseros intentando abrir la misma mesa al mismo tiempo resultan en un único ganador sin corrupción de datos.
+### FASE 3: Panel Administrativo de Carta y Stock (Planes Pro y Business)
+* **Objetivo:** Autonomía operativa para el Administrador único del restaurante.
+* **Entregables:**
+  * CRUD de categorías con asignación de iconos vectoriales SVG limpios (emojis prohibidos).
+  * Alta y edición de productos dentro del tope del plan (50 en Pro, ilimitado en Business).
+  * Pausa táctil de stock (`isAvailable: true/false`) con propagación en tiempo real.
+  * Compresión en cliente de imágenes gastronómicas a formato WebP (< 400 KB).
 
 ---
 
-### FASE 5: Recepción en Caja e Impresión Térmica POS-5890U-L (Base Plan Business)
-* **Objetivo:** Tablero de despacho para el administrador y conexión con la impresora física térmica de 58 mm.
-* **Entregables Clave:**
-  * Tablero tripartito de caja: **Vacía**, **Sin Imprimir (Alerta visual pulsante)** y **Ocupada / Impresa**.
-  * Driver de hardware `printerService.ts` con conectividad **Web Bluetooth** y cable USB en 32 columnas.
-  * **3 Formatos de Impresión Estrictos:**
-    1. *Comanda Inicial de Cocina/Barra:* Mesa, mesero, hora, consecutivo, cantidades y notas. Cero precios.
-    2. *Comanda de Adición:* Rotulada como `*** COMANDA DE ADICIÓN ***` conteniendo únicamente los ítems de rondas posteriores.
-    3. *Pre-cuenta del Cliente:* Membrete, desglose de ítems con precios unitarios (IVA incluido), propina sugerida, total a pagar y leyenda fiscal legal.
-  * Timestamps registrados: `printedAt` al emitir comanda y `paidAt` al cobrar.
-  * Modal de contingencia y reintento ante atascos, fin de papel o desconexión física.
-* **Criterio de Aceptación (DoD):**
-  * Al presionar "Imprimir Comanda" desde la tablet de caja, la POS-5890U-L imprime el ticket sin descuadre de márgenes.
-  * Al marcar como pagado, la orden queda **permanentemente congelada e inmutable** en Firestore.
+### FASE 4: Operación de Salón y Meseros con Google Auth (Plan Business)
+* **Objetivo:** Toma de pedidos ágil desde dispositivos móviles personales de los meseros.
+* **Entregables:**
+  * Inicio de sesión de meseros mediante su cuenta Google personal autorizada en `authorized_staff`.
+  * Mapa de mesas con perspectiva simplificada: **Vacía (Verde)** u **Ocupada (Ámbar/Rojo)**.
+  * Drawer de comanda estructurado en 3 espacios ergonómicos:
+    1. *Buscador superior predictivo.*
+    2. *Bandeja central de ítems con notas de preparación y cantidades.*
+    3. *Barra inferior de categorías SVG.*
+  * Adición de nuevas rondas a mesas ocupadas con bandera `isAddedRound: true`.
 
 ---
 
-### FASE 6: Métricas y Estadísticas Financieras Auditadas (Base Plan Business)
-* **Objetivo:** Proporcionar al dueño un resumen contable transparente, inmutable y basado en datos reales de caja.
-* **Entregables Clave:**
-  * Motor de cálculo matemático `AnalyticsCalculator.ts` operando **únicamente sobre `status == 'paid'`**.
-  * Cero cálculos o desgloses de IVA (precios netos).
-  * Tarjetas KPI de alto impacto: Ventas del día, Ticket Promedio por mesa, Total mensual acumulado.
-  * Gráficas de distribución por día de la semana y horas pico.
-  * Tablas de ranking de productos por rotación de inventario (volumen) y por facturación ($).
-  * Desglose de productividad y ventas generadas por cada mesero.
-* **Criterio de Aceptación (DoD):**
-  * Los pedidos cancelados o mesas actualmente abiertas no suman ni un solo peso al reporte de ingresos.
-  * Las ventas históricas no se alteran ante cambios futuros de precio en el menú.
+### FASE 5: Recepción en Caja e Impresión Térmica POS-5890U-L (Plan Business)
+* **Objetivo:** Tablero de despacho en vivo y conexión física de impresión térmica en 58 mm.
+* **Entregables:**
+  * Tablero tripartito de caja: **Vacía**, **Sin Imprimir (Alerta destacada)** y **Ocupada / Impresa**.
+  * Driver ESC/POS para POS-5890U-L (32 columnas monoespaciadas).
+  * **3 Plantillas de Impresión:**
+    1. *Comanda Inicial de Cocina/Barra (sin precios).*
+    2. *Comanda de Adición (únicamente platos nuevos).*
+    3. *Pre-cuenta del Cliente (precios unitarios con IVA incluido y propina voluntaria sugerida).*
+  * Registro de timestamps: `printedAt` y `paidAt`.
+  * Congelamiento inmutable permanente de la orden una vez cobrada.
 
 ---
 
-### FASE 7: Aprovisionamiento de Desarrollador, Empaquetado y Plantillas
-* **Objetivo:** Flujo de entrega comercial inmediata de las plantillas Start, Pro y Business.
-* **Entregables Clave:**
-  * Flujo de Aprovisionamiento por Desarrollador: Crear restaurante, dar de alta al único admin, cargar categorías SVG iniciales, platos y mesas antes de entregar al cliente.
-  * Generación y prueba de las 3 plantillas en `C:\Users\JOSUE\PROYECTOS\Plantillas para restaurantes\`:
-    * `/start`: Pre-configurada con `capabilities.start`.
-    * `/pro`: Pre-configurada con `capabilities.pro`.
-    * `/business`: Pre-configurada con `capabilities.business`.
-  * Verificación estricta de compilación y empaquetado (`npm run build`) en cada una de ellas.
-  * Archivo `firestore.rules` desplegado y validado.
-* **Criterio de Aceptación (DoD):**
-  * Clonar una plantilla para un nuevo cliente, configurarla desde el panel de desarrollador y tenerla funcionando en producción en menos de 5 minutos.
+### FASE 6: Métricas y Auditoría Financiera
+* **Objetivo:** Panel contable transparente y verídico basado en transacciones pagadas.
+* **Entregables:**
+  * Motor de cálculo matemático auditado sobre órdenes con `status == 'pagada'`.
+  * Ventas del día, ticket promedio, ventas del mes y ranking de productos por rotación e ingresos.
+  * Rendimiento de turnos por mesero.

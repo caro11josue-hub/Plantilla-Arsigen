@@ -1,501 +1,167 @@
 rules_version = '2';
 
 // ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Application: ARSIGEN GastroPOS
-// Document: ARS-SPEC-DBS-003 / ARS-SPEC-BRP-004
-//
-// 1. Collection: /config/{configId} (Singleton: 'general')
-//    Document ID: 'general'
-//    Fields:
-//      - restaurantName: string (required, 1..100 chars)
-//      - legalDocument: string (required, 1..50 chars, e.g. NIT/RUT)
-//      - address: string (required, 1..200 chars)
-//      - phone: string (required, 1..50 chars)
-//      - currency: string (required, 'COP' | 'USD')
-//      - plan: string (required, 'start' | 'pro' | 'business', immutable by admin)
-//      - hasThematicDesign: bool (required)
-//      - settings: map (required, suggestedTipPercentage, receiptLegalLegend, orderConsecutiveDaily, consecutiveDate)
-//      - socialLinks: map (optional, whatsappUrl, googleMapsReviewUrl, instagramUrl)
-//      - updatedAt: string (required, ISO 8601, <= 40 chars)
-//
-// 2. Collection: /categories/{categoryId}
-//    Document ID: auto-generated or slug (e.g. 'cat_entradas')
-//    Fields:
-//      - id: string (required, matches document ID, immutable)
-//      - name: string (required, 1..100 chars)
-//      - iconSvgName: string (required, 1..50 chars)
-//      - sortOrder: number (required, >= 0, internal ordering)
-//      - isActive: bool (required)
-//      - createdAt: string (required, ISO 8601, immutable)
-//      - updatedAt: string (required, ISO 8601)
-//
-// 3. Collection: /menu_items/{itemId}
-//    Document ID: auto-generated or slug (e.g. 'item_1')
-//    Fields:
-//      - id: string (required, matches document ID, immutable)
-//      - categoryId: string (required, reference to /categories)
-//      - name: string (required, 1..120 chars)
-//      - description: string (required, 0..1000 chars)
-//      - price: number (required, >= 0, local currency with VAT included)
-//      - imageUrl: string (required, 1..2000 chars)
-//      - imageStoragePath: string (optional, 0..500 chars)
-//      - isAvailable: bool (required)
-//      - sortOrder: number (required, >= 0, internal ordering)
-//      - createdAt: string (required, ISO 8601, immutable)
-//      - updatedAt: string (required, ISO 8601)
-//
-// 4. Collection: /tables/{tableId}
-//    Document ID: e.g. 'table_1', 'mesa_1'
-//    Fields:
-//      - id: string (required, matches document ID, immutable)
-//      - number: number (required, 1..200, immutable)
-//      - name: string (required, 1..60 chars)
-//      - capacity: number (required, 1..100)
-//      - status: string (required, 'vacia' | 'sin_imprimir' | 'ocupada')
-//      - activeOrderId: string | null (required/nullable, <= 64 chars)
-//      - currentWaiterId: string | null (required/nullable, <= 64 chars)
-//      - currentWaiterName: string | null (required/nullable, <= 100 chars)
-//      - openedAt: string | null (required/nullable, ISO 8601, <= 40 chars)
-//      - updatedAt: string (required, ISO 8601, <= 40 chars)
-//
-// 5. Collection: /orders/{orderId}
-//    Document ID: e.g. 'order_1731110000000_123'
-//    Fields:
-//      - id: string (required, matches document ID, immutable)
-//      - dailyNumber: number (required, 1..100000, immutable)
-//      - tableId: string (required, reference to /tables, immutable)
-//      - tableNumber: number (required, 0..500, immutable)
-//      - isWaiterPersonalOrder: bool (required)
-//      - isAddition: bool (optional)
-//      - parentOrderId: string (optional, <= 64 chars)
-//      - waiterId: string (required, UID of waiter, immutable)
-//      - waiterName: string (required, 1..100 chars)
-//      - status: string (required, 'sin_imprimir' | 'impresa' | 'pagada' | 'cancelada')
-//      - items: list (required, 1..100 snapshots with unitPrice, quantity, subtotal, etc.)
-//      - subtotal: number (required, >= 0, with VAT included)
-//      - tipAmount: number (required, >= 0)
-//      - total: number (required, >= 0)
-//      - paymentMethod: string | null (required/nullable, 'efectivo' | 'tarjeta' | 'transferencia')
-//      - createdAt: string (required, ISO 8601, immutable)
-//      - printedAt: string | null (required/nullable, ISO 8601)
-//      - paidAt: string | null (required/nullable, ISO 8601)
-//      - cancelledAt: string | null (required/nullable, ISO 8601)
-//      - cancellationReason: string (optional, 1..500 chars, mandatory if status == 'cancelada')
-//
-// 6. Collection: /users/{userId}
-//    Document ID: Firebase Auth UID
-//    Fields:
-//      - uid: string (required, matches auth UID, immutable)
-//      - role: string (required, 'developer' | 'admin' | 'waiter', immutable by non-dev)
-//      - name: string (required, 1..100 chars)
-//      - email: string (optional, 1..120 chars)
-//      - username: string (optional, 1..50 chars)
-//      - pinHash: string (optional, 1..100 chars)
-//      - isActive: bool (required)
-//      - currentSessionId: string (required, <= 100 chars, updated on login)
-//      - lastLoginAt: string (required, ISO 8601, <= 40 chars)
-//      - createdAt: string (required, ISO 8601, immutable)
-//
+// ARSIGEN GastroPOS · Production Firestore Security Rules
+// Document Reference: ARS-SPEC-BRP-004 (v1.2.0) & ARS-SPEC-DBS-003 (v1.2.0)
+// Plantilla Base: "Bistró & Leña · Fuego Sagrado"
+// Architecture: Closed Software with Google Auth Whitelist
 // ===============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===============================================================
-    // Helper Functions
+    // Helper Functions & Whitelist Validation
     // ===============================================================
 
-    // Check if the request is authenticated
     function isAuthenticated() {
       return request.auth != null && request.auth.uid != null;
     }
 
-    // Check if the authenticated user owns the document path
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function getUserEmail() {
+      return request.auth.token.email;
     }
 
-    // Check if user document exists in /users collection
-    function userDocExists() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    function hasStaffDoc() {
+      return isAuthenticated() &&
+             getUserEmail() != null &&
+             exists(/databases/$(database)/documents/authorized_staff/$(getUserEmail()));
     }
 
-    // Retrieve user document data safely
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getStaffData() {
+      return get(/databases/$(database)/documents/authorized_staff/$(getUserEmail())).data;
     }
 
-    // Developer Role: verified via custom claims token or user document
+    // Un usuario es staff válido si su correo existe en authorized_staff y active == true
+    function isStaff() {
+      return isDeveloper() || (hasStaffDoc() && getStaffData().active == true);
+    }
+
+    // Desarrollador maestro de ARSIGEN (Josué Caro)
     function isDeveloper() {
       return isAuthenticated() && (
-        (request.auth.token.role != null && request.auth.token.role == 'developer') ||
-        (userDocExists() && getUserData().role == 'developer')
+        getUserEmail() == 'caro11josue@gmail.com' ||
+        request.auth.token.role == 'developer' ||
+        (hasStaffDoc() && getStaffData().role == 'developer')
       );
     }
 
-    // Active Staff: user must be active staff member or developer
-    function isActiveStaff() {
-      return isAuthenticated() && (
-        isDeveloper() ||
-        (userDocExists() && getUserData().isActive == true)
-      );
-    }
-
-    // Admin Role: developer or active user with admin role
+    // Administrador del restaurante (o Desarrollador)
     function isAdmin() {
-      return isDeveloper() || (
-        isActiveStaff() && getUserData().role == 'admin'
-      );
+      return isDeveloper() || (isStaff() && getStaffData().role == 'admin');
     }
 
-    // Waiter Role: active staff user with waiter role
+    // Mesero de salón
     function isWaiter() {
-      return isActiveStaff() && getUserData().role == 'waiter';
-    }
-
-    // Retrieve active plan from /config/general safely (defaults to 'start' if not yet provisioned)
-    function getRestaurantPlan() {
-      return exists(/databases/$(database)/documents/config/general)
-        ? get(/databases/$(database)/documents/config/general).data.plan
-        : 'start';
-    }
-
-    // Menu Management Permission: Developer, or Admin on Pro/Business tier
-    function canManageMenu() {
-      return isDeveloper() || (
-        isAdmin() && (
-          getRestaurantPlan() == 'pro' || getRestaurantPlan() == 'business'
-        )
-      );
-    }
-
-    // Validate number type (int or float)
-    function isNumber(val) {
-      return val is int || val is float;
+      return isStaff() && getStaffData().role == 'waiter';
     }
 
     // ===============================================================
-    // Domain Validators (Validator Function Pattern)
-    // ===============================================================
-
-    // 1. Restaurant Config Validator
-    function isValidRestaurantConfig(data) {
-      return data.keys().hasAll([
-        'restaurantName', 'legalDocument', 'address', 'phone',
-        'currency', 'plan', 'hasThematicDesign', 'settings', 'updatedAt'
-      ]) &&
-      data.keys().hasOnly([
-        'restaurantName', 'legalDocument', 'address', 'phone',
-        'currency', 'plan', 'hasThematicDesign', 'settings', 'socialLinks', 'updatedAt'
-      ]) &&
-      data.restaurantName is string && data.restaurantName.size() > 0 && data.restaurantName.size() <= 100 &&
-      data.legalDocument is string && data.legalDocument.size() > 0 && data.legalDocument.size() <= 50 &&
-      data.address is string && data.address.size() > 0 && data.address.size() <= 200 &&
-      data.phone is string && data.phone.size() > 0 && data.phone.size() <= 50 &&
-      data.currency in ['COP', 'USD'] &&
-      data.plan in ['start', 'pro', 'business'] &&
-      data.hasThematicDesign is bool &&
-      data.settings is map &&
-      data.settings.keys().hasAll(['suggestedTipPercentage', 'receiptLegalLegend', 'orderConsecutiveDaily', 'consecutiveDate']) &&
-      isNumber(data.settings.suggestedTipPercentage) && data.settings.suggestedTipPercentage >= 0 && data.settings.suggestedTipPercentage <= 100 &&
-      data.settings.receiptLegalLegend is string && data.settings.receiptLegalLegend.size() <= 300 &&
-      isNumber(data.settings.orderConsecutiveDaily) && data.settings.orderConsecutiveDaily >= 0 &&
-      data.settings.consecutiveDate is string && data.settings.consecutiveDate.size() <= 20 &&
-      (!('socialLinks' in data) || (
-        data.socialLinks is map &&
-        data.socialLinks.keys().hasOnly(['whatsappUrl', 'googleMapsReviewUrl', 'instagramUrl'])
-      )) &&
-      data.updatedAt is string && data.updatedAt.size() <= 40;
-    }
-
-    // 2. Menu Category Validator
-    function isValidCategory(data) {
-      return data.keys().hasAll(['id', 'name', 'iconSvgName', 'sortOrder', 'isActive', 'createdAt', 'updatedAt']) &&
-      data.keys().hasOnly(['id', 'name', 'iconSvgName', 'sortOrder', 'isActive', 'createdAt', 'updatedAt']) &&
-      data.id is string && data.id.size() > 0 && data.id.size() <= 64 &&
-      data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-      data.iconSvgName is string && data.iconSvgName.size() > 0 && data.iconSvgName.size() <= 50 &&
-      isNumber(data.sortOrder) && data.sortOrder >= 0 && data.sortOrder <= 100000 &&
-      data.isActive is bool &&
-      data.createdAt is string && data.createdAt.size() <= 40 &&
-      data.updatedAt is string && data.updatedAt.size() <= 40;
-    }
-
-    // 3. Menu Item Validator
-    function isValidMenuItem(data) {
-      return data.keys().hasAll([
-        'id', 'categoryId', 'name', 'description', 'price',
-        'imageUrl', 'isAvailable', 'sortOrder', 'createdAt', 'updatedAt'
-      ]) &&
-      data.keys().hasOnly([
-        'id', 'categoryId', 'name', 'description', 'price',
-        'imageUrl', 'imageStoragePath', 'isAvailable', 'sortOrder', 'createdAt', 'updatedAt'
-      ]) &&
-      data.id is string && data.id.size() > 0 && data.id.size() <= 64 &&
-      data.categoryId is string && data.categoryId.size() > 0 && data.categoryId.size() <= 64 &&
-      data.name is string && data.name.size() > 0 && data.name.size() <= 120 &&
-      data.description is string && data.description.size() <= 1000 &&
-      isNumber(data.price) && data.price >= 0 && data.price <= 1000000000 &&
-      data.imageUrl is string && data.imageUrl.size() > 0 && data.imageUrl.size() <= 2000 &&
-      (!('imageStoragePath' in data) || (data.imageStoragePath is string && data.imageStoragePath.size() <= 500)) &&
-      data.isAvailable is bool &&
-      isNumber(data.sortOrder) && data.sortOrder >= 0 && data.sortOrder <= 100000 &&
-      data.createdAt is string && data.createdAt.size() <= 40 &&
-      data.updatedAt is string && data.updatedAt.size() <= 40;
-    }
-
-    // 4. Restaurant Table Validator
-    function isValidTable(data) {
-      return data.keys().hasAll([
-        'id', 'number', 'name', 'capacity', 'status',
-        'activeOrderId', 'currentWaiterId', 'currentWaiterName', 'openedAt', 'updatedAt'
-      ]) &&
-      data.keys().hasOnly([
-        'id', 'number', 'name', 'capacity', 'status',
-        'activeOrderId', 'currentWaiterId', 'currentWaiterName', 'openedAt', 'updatedAt'
-      ]) &&
-      data.id is string && data.id.size() > 0 && data.id.size() <= 64 &&
-      isNumber(data.number) && data.number >= 1 && data.number <= 200 &&
-      data.name is string && data.name.size() > 0 && data.name.size() <= 60 &&
-      isNumber(data.capacity) && data.capacity >= 1 && data.capacity <= 100 &&
-      data.status in ['vacia', 'sin_imprimir', 'ocupada'] &&
-      (data.activeOrderId == null || (data.activeOrderId is string && data.activeOrderId.size() <= 64)) &&
-      (data.currentWaiterId == null || (data.currentWaiterId is string && data.currentWaiterId.size() <= 64)) &&
-      (data.currentWaiterName == null || (data.currentWaiterName is string && data.currentWaiterName.size() <= 100)) &&
-      (data.openedAt == null || (data.openedAt is string && data.openedAt.size() <= 40)) &&
-      data.updatedAt is string && data.updatedAt.size() <= 40;
-    }
-
-    // 5. Restaurant Order Validator
-    function isValidOrder(data) {
-      return data.keys().hasAll([
-        'id', 'dailyNumber', 'tableId', 'tableNumber', 'isWaiterPersonalOrder',
-        'waiterId', 'waiterName', 'status', 'items', 'subtotal',
-        'tipAmount', 'total', 'paymentMethod', 'createdAt', 'printedAt',
-        'paidAt', 'cancelledAt'
-      ]) &&
-      data.keys().hasOnly([
-        'id', 'dailyNumber', 'tableId', 'tableNumber', 'isWaiterPersonalOrder',
-        'isAddition', 'parentOrderId', 'waiterId', 'waiterName', 'status',
-        'items', 'subtotal', 'tipAmount', 'total', 'paymentMethod',
-        'createdAt', 'printedAt', 'paidAt', 'cancelledAt', 'cancellationReason'
-      ]) &&
-      data.id is string && data.id.size() > 0 && data.id.size() <= 64 &&
-      isNumber(data.dailyNumber) && data.dailyNumber >= 1 && data.dailyNumber <= 100000 &&
-      data.tableId is string && data.tableId.size() > 0 && data.tableId.size() <= 64 &&
-      isNumber(data.tableNumber) && data.tableNumber >= 0 && data.tableNumber <= 500 &&
-      data.isWaiterPersonalOrder is bool &&
-      (!('isAddition' in data) || data.isAddition is bool) &&
-      (!('parentOrderId' in data) || (data.parentOrderId is string && data.parentOrderId.size() <= 64)) &&
-      data.waiterId is string && data.waiterId.size() > 0 && data.waiterId.size() <= 64 &&
-      data.waiterName is string && data.waiterName.size() > 0 && data.waiterName.size() <= 100 &&
-      data.status in ['sin_imprimir', 'impresa', 'pagada', 'cancelada'] &&
-      data.items is list && data.items.size() > 0 && data.items.size() <= 100 &&
-      isNumber(data.subtotal) && data.subtotal >= 0 && data.subtotal <= 1000000000 &&
-      isNumber(data.tipAmount) && data.tipAmount >= 0 && data.tipAmount <= 100000000 &&
-      isNumber(data.total) && data.total >= 0 && data.total <= 1000000000 &&
-      (data.paymentMethod == null || (data.paymentMethod is string && data.paymentMethod in ['efectivo', 'tarjeta', 'transferencia'])) &&
-      data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 40 &&
-      (data.printedAt == null || (data.printedAt is string && data.printedAt.size() <= 40)) &&
-      (data.paidAt == null || (data.paidAt is string && data.paidAt.size() <= 40)) &&
-      (data.cancelledAt == null || (data.cancelledAt is string && data.cancelledAt.size() <= 40)) &&
-      (!('cancellationReason' in data) || (data.cancellationReason is string && data.cancellationReason.size() <= 500));
-    }
-
-    // 6. User Profile Validator
-    function isValidUser(data) {
-      return data.keys().hasAll([
-        'uid', 'role', 'name', 'isActive', 'currentSessionId', 'lastLoginAt', 'createdAt'
-      ]) &&
-      data.keys().hasOnly([
-        'uid', 'role', 'name', 'email', 'username', 'pinHash',
-        'isActive', 'currentSessionId', 'lastLoginAt', 'createdAt'
-      ]) &&
-      data.uid is string && data.uid.size() > 0 && data.uid.size() <= 64 &&
-      data.role in ['developer', 'admin', 'waiter'] &&
-      data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-      (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
-      (!('username' in data) || (data.username is string && data.username.size() <= 50)) &&
-      (!('pinHash' in data) || (data.pinHash is string && data.pinHash.size() <= 100)) &&
-      data.isActive is bool &&
-      data.currentSessionId is string && data.currentSessionId.size() <= 100 &&
-      data.lastLoginAt is string && data.lastLoginAt.size() <= 40 &&
-      data.createdAt is string && data.createdAt.size() <= 40;
-    }
-
-    // ===============================================================
-    // Collection Security Rules
-    // ===============================================================
-
     // 1. Configuración General (/config/general)
-    // Lectura pública para branding, NIT, teléfono y verificación de plan activo
-    match /config/{configId} {
-      allow read: if true;
+    // ===============================================================
+    match /config/{docId} {
+      // Lectura pública: Necesaria para renderizar la carta digital al comensal
+      allow read: true;
+      // Solo el Administrador o Desarrollador pueden editar configuración
+      allow write: if isAdmin() || isDeveloper();
+    }
 
-      // Solo el desarrollador puede aprovisionar la configuración inicial
-      allow create: if isDeveloper() &&
-                       isValidRestaurantConfig(request.resource.data);
+    // ===============================================================
+    // 2. Categorías del Menú (/categories)
+    // ===============================================================
+    match /categories/{categoryId} {
+      // Lectura pública: El comensal consulta las categorías
+      allow read: true;
+      // Escritura: Solo el Administrador o Desarrollador
+      allow write: if isAdmin();
+    }
 
-      // Desarrollador puede mutar cualquier campo (incluyendo 'plan')
-      // Administrador puede mutar configuraciones operativas, pero NUNCA el atributo 'plan'
-      allow update: if isValidRestaurantConfig(request.resource.data) && (
-        isDeveloper() ||
-        (isAdmin() && request.resource.data.plan == resource.data.plan)
+    // ===============================================================
+    // 3. Catálogo de Productos (/menu_items)
+    // ===============================================================
+    match /menu_items/{itemId} {
+      // Lectura pública: El comensal consulta la carta
+      allow read: true;
+      // Escritura: Solo el Administrador o Desarrollador (precios, fotos, pausa de stock)
+      allow write: if isAdmin();
+    }
+
+    // ===============================================================
+    // 4. Catálogo de Mesas (/tables - Plan Business)
+    // ===============================================================
+    match /tables/{tableId} {
+      // Solo el personal autorizado (meseros y admin) puede ver y operar mesas
+      allow read: if isStaff();
+      
+      // Actualizaciones operativas:
+      // - Admin puede cambiar cualquier mesa
+      // - Mesero puede cambiar de vacia a sin_imprimir o mantenerla ocupada
+      allow update: if isStaff() && (
+        isAdmin() ||
+        (isWaiter() && (
+          request.resource.data.status != 'vacia' || resource.data.status == 'vacia'
+        ))
       );
 
-      // El documento de configuración singleton jamás debe ser eliminado
-      allow delete: if false;
+      // Alta y baja física de mesas: Solo Administrador
+      allow create, delete: if isAdmin();
     }
 
-    // 2. Categorías del Menú (/categories)
-    // Lectura pública (get/list) para comensales y personal
-    match /categories/{categoryId} {
-      allow read: if true;
-
-      // Escritura restringida: Developer o Admin con plan 'pro'/'business'
-      allow create: if canManageMenu() &&
-                       isValidCategory(request.resource.data) &&
-                       request.resource.data.id == categoryId;
-
-      allow update: if canManageMenu() &&
-                       isValidCategory(request.resource.data) &&
-                       request.resource.data.id == resource.data.id &&
-                       request.resource.data.createdAt == resource.data.createdAt;
-
-      allow delete: if canManageMenu();
-    }
-
-    // 3. Catálogo de Productos del Menú (/menu_items)
-    // Lectura pública (get/list) para comensales y personal
-    match /menu_items/{itemId} {
-      allow read: if true;
-
-      // Escritura restringida: Developer o Admin con plan 'pro'/'business'
-      allow create: if canManageMenu() &&
-                       isValidMenuItem(request.resource.data) &&
-                       request.resource.data.id == itemId;
-
-      allow update: if canManageMenu() &&
-                       isValidMenuItem(request.resource.data) &&
-                       request.resource.data.id == resource.data.id &&
-                       request.resource.data.createdAt == resource.data.createdAt;
-
-      allow delete: if canManageMenu();
-    }
-
-    // 4. Catálogo y Estado de Mesas (/tables)
-    // Lectura permitida a personal activo (waiter, admin, developer)
-    match /tables/{tableId} {
-      allow read: if isActiveStaff();
-
-      // Creación y borrado de mesas: administración y aprovisionamiento
-      allow create: if (isAdmin() || isDeveloper()) &&
-                       isValidTable(request.resource.data) &&
-                       request.resource.data.id == tableId;
-
-      // Actualización atómica de estado ('vacia', 'sin_imprimir', 'ocupada') por meseros o admins
-      allow update: if isActiveStaff() &&
-                       (isAdmin() || isWaiter()) &&
-                       isValidTable(request.resource.data) &&
-                       request.resource.data.id == resource.data.id &&
-                       request.resource.data.number == resource.data.number;
-
-      allow delete: if isAdmin() || isDeveloper();
-    }
-
-    // 5. Órdenes y Comandas (/orders)
-    // Lectura permitida a personal activo
+    // ===============================================================
+    // 5. Órdenes y Comandas (/orders - Plan Business)
+    // ===============================================================
     match /orders/{orderId} {
-      allow read: if isActiveStaff();
+      // Solo el personal operativo puede consultar las órdenes activas
+      allow read: if isStaff();
 
-      // Creación permitida a meseros, administradores y desarrollador
-      // Estado inicial mandatorio: 'sin_imprimir'
-      allow create: if isActiveStaff() &&
-                       (isWaiter() || isAdmin() || isDeveloper()) &&
-                       isValidOrder(request.resource.data) &&
-                       request.resource.data.id == orderId &&
-                       request.resource.data.status == 'sin_imprimir' &&
-                       (isAdmin() || isDeveloper() || request.resource.data.waiterId == request.auth.uid);
-
-      // Actualización de órdenes:
-      // INMUTABILIDAD ABSOLUTA: Si resource.data.status == 'pagada', QUEDA PERMANENTEMENTE CONGELADA
-      // Tampoco se permite modificar órdenes ya canceladas
-      allow update: if isActiveStaff() &&
-                       resource.data.status != 'pagada' &&
-                       resource.data.status != 'cancelada' &&
-                       isValidOrder(request.resource.data) &&
-                       request.resource.data.id == resource.data.id &&
-                       request.resource.data.createdAt == resource.data.createdAt &&
-                       request.resource.data.waiterId == resource.data.waiterId &&
-                       request.resource.data.tableId == resource.data.tableId &&
-                       request.resource.data.tableNumber == resource.data.tableNumber &&
-                       request.resource.data.dailyNumber == resource.data.dailyNumber && (
-                         // Caso Mesero: solo puede modificar órdenes con status 'sin_imprimir' o agregar rondas (isAddition)
-                         // No puede cambiar status a 'impresa', 'pagada' ni 'cancelada'
-                         (
-                           isWaiter() &&
-                           resource.data.waiterId == request.auth.uid &&
-                           request.resource.data.status == 'sin_imprimir' &&
-                           (resource.data.status == 'sin_imprimir' || request.resource.data.isAddition == true || request.resource.data.items.size() >= resource.data.items.size())
-                         ) ||
-                         // Caso Admin / Developer: puede actualizar status a 'impresa', 'pagada' o 'cancelada'
-                         (
-                           (isAdmin() || isDeveloper()) &&
-                           (
-                             request.resource.data.status != 'cancelada' ||
-                             (request.resource.data.cancelledAt != null && ('cancellationReason' in request.resource.data) && request.resource.data.cancellationReason is string && request.resource.data.cancellationReason.size() > 0)
-                           ) &&
-                           (
-                             request.resource.data.status != 'pagada' ||
-                             (request.resource.data.paidAt != null && request.resource.data.paymentMethod != null)
-                           )
-                         )
-                       );
-
-      // Eliminación física TERMINANTEMENTE PROHIBIDA (auditoría e inmutabilidad absoluta)
-      allow delete: if false;
-    }
-
-    // 6. Directorio de Personal y Credenciales (/users)
-    // Lectura restringida al propio UID autenticado o al Developer (protección total contra filtrado PII)
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isDeveloper());
-
-      // Creación: Solo developer (máximo 1 admin por proyecto) o admin creando meseros
-      allow create: if isValidUser(request.resource.data) &&
-                       request.resource.data.uid == userId && (
-                         isDeveloper() ||
-                         (isAdmin() && request.resource.data.role == 'waiter')
-                       ) &&
-                       // Garantizar que solo el Developer pueda otorgar el rol 'admin'
-                       (request.resource.data.role != 'admin' || isDeveloper());
+      // Creación: Permitida a meseros o administradores activos
+      allow create: if isStaff() && (
+        request.resource.data.status == 'sin_imprimir' &&
+        request.resource.data.items.size() > 0
+      );
 
       // Actualización:
-      // 1. Developer con control total
-      // 2. Propio usuario actualizando ÚNICAMENTE currentSessionId y lastLoginAt (control de sesión única)
-      // 3. Admin gestionando meseros (sin poder elevarlos a admin ni auto-escalar)
-      allow update: if isValidUser(request.resource.data) &&
-                       request.resource.data.uid == resource.data.uid &&
-                       request.resource.data.createdAt == resource.data.createdAt && (
-                         isDeveloper() ||
-                         (
-                           request.auth.uid == userId &&
-                           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentSessionId', 'lastLoginAt']) &&
-                           request.resource.data.role == resource.data.role &&
-                           request.resource.data.isActive == resource.data.isActive
-                         ) ||
-                         (
-                           isAdmin() &&
-                           resource.data.role == 'waiter' &&
-                           request.resource.data.role == 'waiter'
-                         )
-                       );
+      // REGLA FUNDAMENTAL DE INMUTABILIDAD:
+      // Si la orden ya está 'pagada', NINGÚN usuario puede modificarla.
+      allow update: if isStaff() && (
+        resource.data.status != 'pagada' && (
+          isAdmin() ||
+          (isWaiter() && (
+            resource.data.status != 'cancelada' &&
+            request.resource.data.status != 'pagada' &&
+            request.resource.data.status != 'cancelada'
+          ))
+        )
+      );
 
-      // Borrado físico permitido únicamente al desarrollador en tareas de aprovisionamiento
+      // PROHIBICIÓN TOTAL DE BORRADO FÍSICO:
+      // Las órdenes jamás se eliminan de la base de datos (auditoría fiscal inmutable).
+      allow delete: if false;
+    }
+
+    // ===============================================================
+    // 6. Whitelist de Personal Autorizado (/authorized_staff)
+    // ===============================================================
+    match /authorized_staff/{email} {
+      // Cada usuario autenticado puede leer su propio registro para verificar su rol
+      // El Administrador y Desarrollador pueden leer toda la lista
+      allow read: if isAuthenticated() && (
+        getUserEmail() == email ||
+        isAdmin()
+      );
+
+      // Creación y actualización de personal:
+      // Administrador puede gestionar meseros; Desarrollador puede gestionar todo
+      allow create, update: if isAdmin();
+
+      // Eliminación de personal: Solo Desarrollador
       allow delete: if isDeveloper();
+    }
+
+    // Compatibilidad legado con colección /users si existiera
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

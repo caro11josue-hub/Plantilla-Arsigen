@@ -3,19 +3,21 @@ import { motion, AnimatePresence } from 'motion/react';
 import { GlassCard } from '../common/GlassCard';
 import { loginWithGoogle, logout } from '../../services/authService';
 import { UserRole } from '../../domain/models';
-import { Lock, LogOut, UserCheck, UtensilsCrossed, ShieldAlert, X } from 'lucide-react';
+import { Lock, LogOut, UserCheck, ShieldAlert, X, AlertTriangle } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserRole?: UserRole | null;
-  onRoleChanged: (role: UserRole | null) => void;
+  currentUserEmail?: string | null;
+  onRoleChanged: (role: UserRole | null, email?: string | null) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   currentUserRole,
+  currentUserEmail,
   onRoleChanged,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -25,29 +27,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     setErrorMessage(null);
     try {
-      const user = await loginWithGoogle();
-      // En producción el rol viene de /users/{uid}
-      // Por defecto si es primer login asumimos admin
-      onRoleChanged('admin');
+      const { staff } = await loginWithGoogle();
+      onRoleChanged(staff.role, staff.email);
       onClose();
     } catch (err: any) {
       console.error('Error al autenticar:', err);
-      setErrorMessage(err?.message || 'Error en autenticación con Google');
+      setErrorMessage(
+        err?.message || 'Error en autenticación con Google. Verifica que tu correo esté autorizado.'
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSimulateRole = (role: UserRole) => {
-    onRoleChanged(role);
-    onClose();
   };
 
   const handleLogout = async () => {
     setLoading(true);
     try {
       await logout();
-      onRoleChanged(null);
+      onRoleChanged(null, null);
       onClose();
     } finally {
       setLoading(false);
@@ -57,23 +54,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="w-full max-w-md"
           >
-            <GlassCard glow className="border-cyan-500/30">
+            <GlassCard glow className="border-amber-500/30">
               {/* Header */}
               <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-cyan-500/20 text-cyan-400 rounded-xl">
+                  <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl">
                     <Lock className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">Acceso de Personal</h3>
-                    <p className="text-xs text-slate-400">Administrador y Meseros autorizados</p>
+                    <p className="text-xs text-slate-400">Portal cerrado para colaboradores autorizados</p>
                   </div>
                 </div>
                 <button
@@ -91,15 +89,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div className="text-sm font-bold text-white uppercase tracking-wider">
                       Sesión Activa: {currentUserRole}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      Dispositivo autenticado bajo política de sesión única.
+                    {currentUserEmail && (
+                      <div className="text-xs text-emerald-300 font-mono mt-1">
+                        {currentUserEmail}
+                      </div>
+                    )}
+                    <div className="text-xs text-slate-400 mt-2">
+                      Autenticado bajo verificación de lista blanca del establecimiento.
                     </div>
                   </div>
 
                   <button
                     onClick={handleLogout}
                     disabled={loading}
-                    className="w-full py-3 px-4 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-3 px-4 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-98"
                   >
                     <LogOut className="w-4 h-4" />
                     Cerrar Sesión
@@ -107,10 +110,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Este software es de acceso cerrado. Únicamente las cuentas de Google previamente registradas por la administración pueden acceder a los módulos de salón, cocina y caja.
+                  </p>
+
                   <button
                     onClick={handleGoogleLogin}
                     disabled={loading}
-                    className="w-full py-3.5 px-4 rounded-xl bg-white text-slate-900 font-semibold text-sm flex items-center justify-center gap-3 hover:bg-slate-100 transition-all shadow-lg active:scale-98"
+                    className="w-full py-3.5 px-4 rounded-xl bg-white text-slate-900 font-bold text-sm flex items-center justify-center gap-3 hover:bg-slate-100 transition-all shadow-lg active:scale-98 disabled:opacity-50"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                       <path
@@ -130,37 +137,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                       />
                     </svg>
-                    {loading ? 'Autenticando...' : 'Acceder con Google Workspace'}
+                    {loading ? 'Verificando autorización...' : 'Continuar con Google'}
                   </button>
 
                   {errorMessage && (
-                    <div className="p-3 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs">
-                      {errorMessage}
-                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-start gap-2.5 text-rose-300 text-xs leading-relaxed"
+                    >
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                      <span>{errorMessage}</span>
+                    </motion.div>
                   )}
-
-                  {/* Simulador rápido de prueba para desarrollo y verificación */}
-                  <div className="pt-3 border-t border-white/10">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
-                      Modo de Prueba Rápida (Entorno Local)
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => handleSimulateRole('admin')}
-                        className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-200 flex items-center justify-center gap-2 transition-all"
-                      >
-                        <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
-                        Simular Admin
-                      </button>
-                      <button
-                        onClick={() => handleSimulateRole('waiter')}
-                        className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-200 flex items-center justify-center gap-2 transition-all"
-                      >
-                        <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
-                        Simular Mesero
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
             </GlassCard>

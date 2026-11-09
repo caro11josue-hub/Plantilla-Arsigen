@@ -1,32 +1,34 @@
 # 🏛️ ESPECIFICACIÓN DE ARQUITECTURA DE SOFTWARE (SAS)
 ## Arquitectura del Motor Gastronómico ARSIGEN · Single-Core Modular
+### Plantilla Base: "Bistró & Leña · Fuego Sagrado"
 
 ---
 
 ### Control del Documento
 * **Código:** `ARS-SPEC-SAS-002`
-* **Versión:** `1.1.0` (Actualizado según Aclaraciones del Propietario)
+* **Versión:** `1.2.0` (Alineado con Iteración 1: Software Cerrado, Auth Google Whitelist & Motion System)
 * **Estado:** Aprobado para Construcción
-* **Fecha:** 2026-11-08
+* **Fecha:** 2026-11-09
 * **Autor:** Josué Caro (ARSIGEN SAS) & Antigravity Lead Architect
 * **Trazabilidad:** Derivado de `ARS-SPEC-SRS-001`
+* **Diagramas Relacionados:** [DIAGRAM_SEQUENCE.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_SEQUENCE.md) y [DIAGRAM_FLOWCHARTS_AND_STATES.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_FLOWCHARTS_AND_STATES.md)
 
 ---
 
 ## 1. Visión General de la Arquitectura y Patrones de Diseño
 
-El sistema está diseñado bajo el patrón **Clean Architecture** y **Modular Monolith** desacoplado en el cliente, apoyado en una infraestructura serverless en la nube:
+El sistema opera bajo los patrones **Clean Architecture**, **Modular Monolith** desacoplado en cliente e **Instancia Aislada Dedicada** en la nube:
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                           CAPA DE PRESENTACIÓN (UI)                       │
-│  [ Menú Comensal ]   [ PWA Meseros (Salón) ]   [ Tablero Caja & Métricas ]│
-│               [ Panel de Desarrollador en Producción ]                    │
+│  [ Menú Comensal Bistró ]   [ PWA Meseros (Google Auth) ]   [ Caja & POS ]│
+│               [ Consola de Infraestructura Desarrollador ]                │
 └─────────────────────────────────────┬─────────────────────────────────────┘
                                       │
 ┌─────────────────────────────────────▼─────────────────────────────────────┐
-│                       CAPA DE DOMINIO & FEATURE FLAGS                     │
-│  [ DynamicCapabilityMatrix ]  [ StateMachine: Mesas ]  [ Snapshot Engine ]│
+│                 CAPA DE ENRUTAMIENTO CERRADO Y WHITELIST                  │
+│  [ Stealth Gatekeeper ]  [ Auth Whitelist Guard ]  [ Dynamic Capabilities]│
 └─────────────────────────────────────┬─────────────────────────────────────┘
                                       │
 ┌─────────────────────────────────────▼─────────────────────────────────────┐
@@ -40,11 +42,38 @@ El sistema está diseñado bajo el patrón **Clean Architecture** y **Modular Mo
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1. Motor Único con Matriz de Capacidades Dinámicas
-Cada instancia cuenta con una configuración viva alojada en `/config/general`. El archivo `capabilities.ts` mapea el plan (`start`, `pro`, `business`) y las banderas activas en tiempo real:
+---
+
+## 2. Enrutamiento Estricto de Software Cerrado y Gatekeeper de Personal
+
+A diferencia de las arquitecturas SaaS convencionales, el componente raíz `App.tsx` no renderiza selectores de perspectiva ni enlaces administrativos al usuario general:
+
+```mermaid
+flowchart TD
+    Init["Acceso al Dominio (QR o URL)"] --> AuthCheck{"¿Existe Sesión de Google Activa?"}
+    
+    AuthCheck -- NO --> PublicView["Renderizar exclusivamente <CustomerMenuView />\n(Menú temático 'Bistró & Leña' + Footer sutil ARSIGEN)"]
+    
+    AuthCheck -- SÍ --> WhitelistCheck{"Consultar /authorized_staff/{email}\n¿Activo y Rol Válido?"}
+    
+    WhitelistCheck -- "No Autorizado / Inactivo" --> Kickout["Ejecutar auth.signOut()\nToast: 'Acceso No Autorizado'\nRetornar a <CustomerMenuView />"]
+    
+    WhitelistCheck -- "Autorizado" --> RouteRole{"Enrutar según Rol"}
+    RouteRole -- "waiter" --> WaiterView["<WaiterModuleView />\n(Salón, Mesas y Toma de Comandas)"]
+    RouteRole -- "admin" --> AdminView["<AdminDashboard />\n(Gestión Menú, Caja POS, Impresión Térmica)"]
+    RouteRole -- "developer" --> DevView["<DeveloperConsoleModal />\n(Planes en vivo Start/Pro/Business y Aprovisionamiento)"]
+```
+
+### 2.1. Puerta de Acceso Discreta (Stealth Trigger)
+* Los comensales no ven botones de login.
+* El personal activa el modal de Google OAuth realizando **3 toques consecutivos sobre el logo del restaurante en menos de 1000 ms**.
+* Los toques 1 y 2 permanecen inertes (sin animaciones ni sonidos) para evitar que los comensales descubran el mecanismo.
+
+---
+
+## 3. Matriz de Capacidades Dinámicas del Motor Único (`capabilities.ts`)
 
 ```ts
-// src/config/capabilities.ts
 export type PlanTier = 'start' | 'pro' | 'business';
 
 export interface PlanCapabilities {
@@ -106,69 +135,48 @@ export const CAPABILITIES: Record<PlanTier, PlanCapabilities> = {
 
 ---
 
-## 2. Autenticación Global del Desarrollador y Gestión de Planes en Producción
+## 4. Arquitectura de Motion Graphics y Diseño Editorial ("Bistró & Leña")
 
-Para evitar redespliegues o cambios manuales de código fuente cuando un cliente adquiere un servicio o cambia de plan:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Dev as Desarrollador (Google OAuth)
-    participant Client as Frontend (App en Producción)
-    participant CF as Cloud Function (verifyDeveloper)
-    participant Sec as Secret Manager / Config Global
-    participant DB as Cloud Firestore (/config/general)
-
-    Dev->>Client: Inicia sesión con su cuenta Google personal
-    Client->>CF: Envía ID Token de Google
-    CF->>Sec: Valida firma criptográfica contra lista de correos autorizados
-    alt Es Desarrollador Válido
-        CF-->>Client: Retorna Custom Claim { role: 'developer' }
-        Client->>Client: Desbloquea botón flotante "Panel de Desarrollador"
-        Dev->>Client: Cambia plan de 'start' a 'pro' o edita banderas
-        Client->>DB: Actualiza /config/general.plan en vivo
-        DB-->>Client: Listener en tiempo real propaga capacidades al instante
-    else Usuario No Desarrollador
-        CF-->>Client: Rechazo 403 Forbidden (Tratado como usuario ordinario)
-    end
-```
-
-* **Cero Credenciales Hardcodeadas:** El correo del desarrollador **no reside en el código fuente de Git**. La validación reside en una Cloud Function serverless que consulta una variable secreta en el proyecto.
-* **Aprovisionamiento Inicial:** Desde este panel, el Desarrollador crea el único usuario Administrador (`ACT-ADM`), las categorías iniciales con sus iconos SVG correspondientes, el catálogo de platos iniciales y las mesas sin requerir acceso a la consola de Firebase.
+Para ofrecer una experiencia culinaria premium que rompa con las interfaces genéricas:
+1. **Física de Deslizamiento Lateral (Horizontal Scroll Kinetics):**
+   * El carrusel de categorías y los cortes de la casa utilizan `overflow-x: auto` con snap por elementos (`scroll-snap-type: x mandatory`).
+   * Deslizamiento inercial suave sin barras de scroll invasivas del navegador (`scrollbar-width: none`).
+2. **Sistema de Entrada y Salida Suave (Staggered Motion Tokens):**
+   * Todo modal, producto o menú desplegable cuenta con una curva de transición formal:
+     $$\text{easeOutCubic} = [0.16, 1, 0.3, 1]$$
+   * Entrada: `translateY(16px) -> translateY(0px)`, `opacity: 0 -> 1` con duración de 280 ms.
+   * Salida: `opacity: 1 -> 0`, `scale: 1 -> 0.98` con duración de 200 ms. Ningún elemento desaparece de golpe.
+3. **Composición Orgánica sin Contenedores Cuadrados:**
+   * La información no se encierra en rectángulos aislados con bordes duros.
+   * Se utiliza tipografía jerárquica con espacio negativo (*whitespace*), líneas divisoras sutiles con gradiente ahumado y fondos con resplandor cálido difuso (*amber glow blur-3xl*).
 
 ---
 
-## 3. Formatos y Plantillas de Impresión Térmica (POS-5890U-L · 58 mm / 32 Columnas)
+## 5. Formatos y Plantillas de Impresión Térmica (POS-5890U-L · 58 mm / 32 Columnas)
 
-El ancho imprimible es de 48 mm (exactamente **32 caracteres monoespaciados por línea** en Font A).
+El ancho imprimible es de exactamente **32 caracteres monoespaciados por línea**.
 
-### 3.1. Plantilla 1: Comanda Inicial de Cocina / Barra (Preparación)
-No muestra ningún valor monetario ni precios; únicamente cantidades, nombres de platos y notas con sangría:
-
+### 5.1. Plantilla 1: Comanda Inicial de Cocina / Barra (Preparación)
 ```
 0        1         2         3  
 12345678901234567890123456789012
 ================================
-*** COMANDA COCINA / BARRA ***
+*** COMANDA COCINA / BRASA ***
 ================================
 ORDEN: #0142         HORA: 14:35
 MESA: 05         MESERO: Carlos
 --------------------------------
 CANT  DESCRIPCION
 --------------------------------
- 2    Hamburguesa Doble
-      * Sin cebolla
+ 2    Bife de Chorizo Angus
       * Termino 3/4
- 1    Papas Rusticas Especial
- 2    Limonada de Coco
+      * Papa rustica al romero
+ 1    Costillas Ahumadas Leña
+ 2    Cerveza IPA Artesanal
 ================================
 ```
 
----
-
-### 3.2. Plantilla 2: Comanda de Adición de Productos (Segunda Ronda o Posterior)
-Se emite **únicamente con los platos nuevos** añadidos por el mesero tras haber despachado la comanda inicial:
-
+### 5.2. Plantilla 2: Comanda de Adición (Segunda Ronda)
 ```
 0        1         2         3  
 12345678901234567890123456789012
@@ -181,21 +189,17 @@ MESA: 05         MESERO: Carlos
 --------------------------------
 CANT  DESCRIPCION (NUEVOS)
 --------------------------------
- 2    Cerveza Artesanal IPA
- 1    Porcion de Papas Francesa
+ 2    Coctel Fuego Ahumado
+ 1    Papas Trufadas al Carbon
 ================================
 ```
 
----
-
-### 3.3. Plantilla 3: Pre-cuenta / Recibo del Cliente
-Contiene el membrete del local, los valores económicos con **IVA ya incluido** (sin desglose de impuestos), propina voluntaria sugerida y la leyenda fiscal obligatoria:
-
+### 5.3. Plantilla 3: Pre-cuenta / Recibo del Cliente
 ```
 0        1         2         3  
 12345678901234567890123456789012
 ================================
-      SABOR ARTESANAL REST      
+  BISTRO & LEÑA · FUEGO SAGRADO 
        NIT: 901.482.119-3       
 ================================
 MESA: 05             ORDEN #0142
@@ -203,73 +207,25 @@ MESERO: Carlos       HORA: 15:45
 --------------------------------
 CANT  PRODUCTO             TOTAL
 --------------------------------
- 2    Hamburguesa Doble  $44.000
- 1    Papas Rusticas     $12.000
- 2    Limonada de Coco   $22.000
- 2    Cerveza Artesanal  $24.000
- 1    Papas Francesa      $8.000
+ 2    Bife de Chorizo    $96.000
+ 1    Costillas Ahumadas $54.000
+ 2    Cerveza IPA        $28.000
+ 2    Coctel Ahumado     $42.000
+ 1    Papas Trufadas     $18.000
 --------------------------------
-SUBTOTAL (IVA Incluido):$110.000
-PROPINA SUGERIDA (10%):  $11.000
+SUBTOTAL (IVA Incluido):$238.000
+PROPINA SUGERIDA (10%):  $23.800
 --------------------------------
-TOTAL A PAGAR:          $121.000
+TOTAL A PAGAR:          $261.800
 ================================
- Comprobante de consumo interno 
- No valido como factura fiscal  
+  Comprobante de consumo interno
+  No valido como factura fiscal 
 ================================
 ```
 
 ---
 
-## 4. Diagramas de Secuencia y Flujos Operativos
-
-### 4.1. Flujo de Creación de Orden del Mesero (3 Espacios) y Recepción en Caja
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Mesero as Mesero (Celular)
-    participant UI as Drawer de Pedido (3 Espacios)
-    participant Store as Firestore (/orders & /tables)
-    actor Admin as Administrador (Caja)
-    participant Printer as POS-5890U-L (58mm)
-
-    Mesero->>UI: Toca Mesa 05 Vacía
-    UI->>UI: Abre interfaz en 3 espacios
-    Note over UI: Espacio 1 (Buscador superior)<br/>Espacio 2 (Seleccionados + notas)<br/>Espacio 3 (Categorías inferiores SVG)
-    Mesero->>UI: Selecciona productos y notas
-    Mesero->>UI: Presiona "Enviar a Cocina"
-    UI->>Store: Transacción Atómica: Table=sin_imprimir, Order=created
-    Store-->>Admin: onSnapshot (<200ms) alerta visual ámbar en Mesa 05
-    Admin->>Printer: Presiona "Imprimir Comanda" (Web Bluetooth / USB)
-    Printer-->>Admin: Emite Ticket Comanda Inicial (32 columnas)
-    Admin->>Store: Actualiza Order=impresa, Table=ocupada
-    Store-->>Mesero: onSnapshot actualiza Mesa 05 a "Ocupada (Roja)"
-```
-
-### 4.2. Bloqueo Concurrente de Mesas (Race Condition Prevention)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor MeseroA as Mesero A
-    actor MeseroB as Mesero B
-    participant FS as Firestore (runTransaction)
-
-    MeseroA->>FS: Intenta abrir Mesa 04 (Timestamp t=0ms)
-    MeseroB->>FS: Intenta abrir Mesa 04 (Timestamp t=2ms)
-    FS->>FS: Ejecuta transacción Mesero A: Mesa está 'vacia' -> Pasa a 'sin_imprimir'
-    FS-->>MeseroA: Transacción Exitosa: Mesa 04 asignada
-    FS->>FS: Evalúa transacción Mesero B: Mesa ya NO está 'vacia'
-    FS-->>MeseroB: Error: MESA_YA_OCUPADA
-    MeseroB->>MeseroB: Muestra Toast: "Mesa 04 ocupada por Mesero A. Elige otra."
-```
-
----
-
-## 5. Resiliencia & Tolerancia a Fallos del Ecosistema
-
-1. **Modo Offline en Salón:** Gracias a `persistentLocalCache`, el mesero no detiene su trabajo si la señal Wi-Fi cae; las comandas se encolan en IndexedDB y se despachan de forma atómica en cuanto la red regresa.
-2. **Atasco / Desconexión de Impresora:** Si la POS-5890U-L se apaga o agota el rollo, la orden no se cancela ni se pierde; permanece marcada como `sin_imprimir` con un modal de contingencia para reintentar tras colocar el rollo nuevo o imprimir por pantalla.
-3. **Inmutabilidad Absoluta:** Ningún usuario (incluyendo al Administrador y al Desarrollador) puede modificar ni eliminar una orden cuyo estado sea `paid`.
-4. **Desalojo Concurrente de Sesión:** Si un mesero o admin abre su cuenta en un segundo teléfono, el listener del `currentSessionId` en el primer teléfono cierra sesión inmediatamente (`auth.signOut()`).
+## 6. Diagramas de Secuencia y Flujo de Procesos
+Para una revisión gráfica exhaustiva de las secuencias operativas, consultar los documentos técnicos dedicados:
+* [DIAGRAM_SEQUENCE.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_SEQUENCE.md): Handshake de autenticación, toma de comanda por mesero en 3 espacios ergonómicos, listener de caja, impresión térmica e inmutabilidad de órdenes pagadas.
+* [DIAGRAM_FLOWCHARTS_AND_STATES.md](file:///c:/Users/JOSUE/PROYECTOS/Plantilla%20Arsigen/DIAGRAM_FLOWCHARTS_AND_STATES.md): Máquinas de estado de mesas y órdenes, junto con la gestión de fallos de red e impresora.

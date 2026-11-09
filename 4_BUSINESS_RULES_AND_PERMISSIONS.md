@@ -1,13 +1,14 @@
 # ⚖️ REGLAS DE NEGOCIO Y ESPECIFICACIÓN DE PERMISOS (BRP)
 ## Lógica Operativa, RBAC y Reglas de Seguridad · ARSIGEN GastroPOS
+### Plantilla Base: "Bistró & Leña · Fuego Sagrado"
 
 ---
 
 ### Control del Documento
 * **Código:** `ARS-SPEC-BRP-004`
-* **Versión:** `1.1.0` (Actualizado según Aclaraciones del Propietario)
+* **Versión:** `1.2.0` (Alineado con Iteración 1: Google Auth Whitelist, Colección `authorized_staff` & Inmutabilidad Absoluta)
 * **Estado:** Aprobado para Construcción
-* **Fecha:** 2026-11-08
+* **Fecha:** 2026-11-09
 * **Autor:** Josué Caro (ARSIGEN SAS) & Antigravity Lead Architect
 * **Trazabilidad:** Derivado de `ARS-SPEC-SRS-001`, `ARS-SPEC-SAS-002` y `ARS-SPEC-DBS-003`
 
@@ -29,22 +30,19 @@
 
 ---
 
-### 1.2. Reglas del Rol de Desarrollador (`ACT-DEV`) y Gestión de Usuarios
-* **`[BR-DEV-01] Aprovisionamiento Inicial en Producción:`**  
-  El Desarrollador cuenta con acceso especial en producción para dejar el restaurante 100% configurado antes de entregarlo al cliente: creación del único usuario Administrador, catálogo inicial de categorías con iconos vectoriales SVG seleccionados de la lista predefinida, productos iniciales, mapa de mesas y meseros iniciales.
-* **`[BR-DEV-02] Conservación Íntegra de Facultades del Administrador:**  
-  La intervención del Desarrollador durante el aprovisionamiento o soporte no limita ni restringe los permisos futuros del Administrador. Una vez entregada la aplicación, el Administrador conserva autonomía total para gestionar su restaurante según su plan.
-* **`[BR-DEV-03] Gestión de Planes y Banderas en Vivo sin Redespliegue:**  
-  Si un restaurante cambia de plan (ej. de Start a Pro, o de Pro a Business), el Desarrollador actualiza el atributo `/config/general.plan` o activa capacidades individuales desde el Panel de Desarrollador en producción. La aplicación web sincroniza sus capacidades de forma inmediata sin necesidad de alterar código en local ni redesplegar en Firebase Hosting.
-* **`[BR-DEV-04] Autenticación Global del Desarrollador sin Código Hardcodeado:**  
-  El correo del Desarrollador jamás debe estar escrito en el código fuente de Git. La validación se ejecuta en el servidor mediante Cloud Functions que verifican el ID Token de Google contra la configuración segura del proyecto, inyectando el rol `developer` en la sesión.
-* **`[BR-USR-01] Límites Estrictos de Usuarios por Rol:**  
-  * **Rol `admin`:** Permitido estrictamente **1 único usuario administrador** por restaurante.
-  * **Rol `waiter`:** **Sin límite** en la cantidad de meseros registrados en el establecimiento.
+## 1.2. Reglas de Seguridad y Autenticación de Personal (Google Auth Whitelist)
+* **`[BR-SEC-01] Entrada Silenciosa por Triple Toque (Stealth Trigger):`**  
+  El acceso al personal se activa mediante tres toques consecutivos sobre el logo en un intervalo de tiempo menor a 1000 milisegundos. Los toques 1 y 2 no deben emitir ningún sonido, animación, cambio de escala ni efecto visual de hover, comportándose como un elemento inerte ante los comensales.
+* **`[BR-SEC-02] Inexistencia de Auto-Registro Público:`**  
+  No existe ningún botón de "Registrarse" ni "Crear Cuenta". Los usuarios de personal son dados de alta exclusivamente por el Desarrollador o Administrador en la colección `/authorized_staff`.
+* **`[BR-SEC-03] Verificación Estricta en Servidor (Google OAuth Whitelist):`**  
+  Al iniciar sesión con Google en el modal de personal, el sistema consulta `/authorized_staff/{email}`. Si el documento no existe o su atributo `active == false`, se ejecuta inmediatamente `auth.signOut()` y se muestra un error sin permitir el acceso a ningún módulo.
+* **`[BR-SEC-04] Desalojo Concurrente Obligatorio:**  
+  Un mismo usuario solo puede tener una sesión activa a la vez. Si una cuenta inicia sesión en el Dispositivo B, el Dispositivo A debe cerrar sesión forzosa de inmediato mediante la invalidación del `currentSessionId`.
 
 ---
 
-### 1.3. Reglas de Salón, Mesas y Comandas (Plan Business)
+## 1.3. Reglas de Salón, Mesas y Comandas (Plan Business)
 * **`[BR-TAB-01] Perspectiva Dual del Ciclo de Vida de Mesas:**  
   * **Perspectiva del Mesero (Binaria):** La mesa solo puede estar **Vacía** (verde, lista para sentar) u **Ocupada** (ámbar/roja, con comensales). El mesero no visualiza ni gestiona el estado de impresión de la comanda.
   * **Perspectiva del Administrador en Caja (Tripartita):** Visualiza **Vacía**, **Sin Imprimir (Alerta)** y **Ocupada / Impresa**.
@@ -61,36 +59,13 @@
 
 ---
 
-### 1.4. Reglas de Impresión Térmica POS-5890U-L
+## 1.4. Reglas de Impresión Térmica POS-5890U-L
 * **`[BR-PRT-01] Cuadrícula Monoespaciada Estricta de 32 Columnas:**  
   Ninguna línea enviada a la POS-5890U-L debe superar los 32 caracteres de ancho. Si el nombre de un producto excede los 18 caracteres en la columna descriptiva, debe dividirse en la línea inferior con sangría para preservar el orden visual.
 * **`[BR-PRT-02] Segregación de Formatos de Impresión:**  
   * **Comanda Inicial (Cocina/Barra):** No incluye precios, subtotales ni dinero. Solo Encabezado, Consecutivo, Mesa, Mesero, Hora y Detalle de Ítems con Observaciones.
   * **Comanda de Adición:** Rotulada claramente como `*** COMANDA DE ADICIÓN ***`, contiene exclusivamente los ítems de rondas posteriores.
   * **Pre-cuenta del Cliente:** Desglose con valores monetarios (IVA incluido), propina voluntaria sugerida (10%) y leyenda obligatoria: *"Comprobante de consumo interno / No válido como factura fiscal"*.
-
----
-
-### 1.5. Reglas de Seguridad y Autenticación
-* **`[BR-SEC-01] Entrada Silenciosa por Triple Toque (Stealth Trigger):`**  
-  El acceso al panel de personal se activa mediante tres toques consecutivos sobre el logo en un intervalo de tiempo menor a 1000 milisegundos. Los toques 1 y 2 no deben emitir ningún sonido, animación, cambio de escala ni efecto visual de hover, comportándose como un elemento inerte ante los comensales.
-* **`[BR-SEC-02] Inexistencia de Auto-Registro Público:**  
-  La ventana modal abierta tras el triple toque solo ofrece inicio de sesión para credenciales ya registradas. No existe ningún botón de "Registrarse" ni "Crear Cuenta". Los meseros solo pueden ser creados internamente por el administrador.
-* **`[BR-SEC-03] Sesión Única Concurrente Obligatoria:**  
-  Un mismo usuario solo puede tener una sesión activa a la vez. Si una cuenta inicia sesión en el Dispositivo B, el Dispositivo A debe cerrar sesión forzosa de inmediato mediante la invalidación del `currentSessionId`.
-* **`[BR-SEC-04] Rate Limiting en PIN de Meseros:**  
-  Si se registran 5 intentos fallidos consecutivos de PIN en un terminal, el acceso se bloquea temporalmente por 5 minutos para evitar ataques de fuerza bruta.
-
----
-
-### 1.6. Reglas Matemáticas y Estadísticas Auditadas
-* **`[BR-STA-01] Cálculo Exclusivo sobre Órdenes Pagadas:**  
-  Toda métrica estadística se calcula **exclusivamente sobre órdenes cuyo atributo sea `status == 'paid'`**. Se prohíbe incluir órdenes en estado `sin_imprimir`, `ocupada` o `cancelada`.
-* **`[BR-STA-02] Fórmulas Matemáticas Canónicas:**  
-  * **Ventas Netas Diarias:** $V_{\text{día}} = \sum_{k \in \text{órdenes pagadas hoy}} \text{total}_k$
-  * **Ticket Promedio:** $\bar{T} = \frac{V_{\text{día}}}{N_{\text{órdenes pagadas hoy}}}$
-  * **Ranking de Productos por Rotación:** Agrupación por `productId` sumando `quantity`.
-  * **Ranking de Productos por Facturación:** Agrupación por `productId` sumando `subtotal`.
 
 ---
 
@@ -103,7 +78,7 @@
 | Aprovisionar Restaurante Inicialmente | ✅ | ❌ | ❌ | ❌ |
 | Editar Precios, Nombres y Fotos del Menú | ✅ | ✅ (Pro/Business) | ❌ | ❌ |
 | Alternar Disponibilidad (Pausar Stock) | ✅ | ✅ (Pro/Business) | ❌ | ❌ |
-| Crear y Modificar Usuarios Meseros | ✅ | ✅ (Business) | ❌ | ❌ |
+| Crear y Modificar Usuarios en `authorized_staff` | ✅ | ✅ (Solo meseros) | ❌ | ❌ |
 | Abrir Mesa y Enviar Comanda a Cocina | ✅ | ✅ | ✅ (Business) | ❌ |
 | Añadir Platos a Mesa Ocupada (Adición) | ✅ | ✅ | ✅ (Solo sus mesas) | ❌ |
 | Transferir Mesa Vacía | ✅ | ✅ | ✅ (Solo sus mesas) | ❌ |
@@ -130,35 +105,31 @@ service cloud.firestore {
     }
 
     function isDeveloper() {
-      return isAuthenticated() && request.auth.token.role == 'developer';
+      return isAuthenticated() && (
+        request.auth.token.role == 'developer' ||
+        getStaffData().role == 'developer'
+      );
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getStaffData() {
+      return get(/databases/$(database)/documents/authorized_staff/$(request.auth.token.email)).data;
+    }
+
+    function isStaff() {
+      return isAuthenticated() && getStaffData().active == true;
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        isDeveloper() ||
-        getUserData().role == 'admin'
-      );
+      return isStaff() && (getStaffData().role == 'admin' || isDeveloper());
     }
 
     function isWaiter() {
-      return isAuthenticated() && getUserData().role == 'waiter';
-    }
-
-    function isActiveStaff() {
-      return isAuthenticated() && (
-        isDeveloper() ||
-        getUserData().isActive == true
-      );
+      return isStaff() && getStaffData().role == 'waiter';
     }
 
     // 1. Configuración General (/config/general)
     match /config/{docId} {
       allow read: true; // Lectura pública para saber nombre, logo, plan y settings
-      // Solo el desarrollador o admin pueden modificar configuración
       allow write: if isDeveloper() || isAdmin();
     }
 
@@ -176,11 +147,10 @@ service cloud.firestore {
 
     // 4. Catálogo de Mesas (/tables)
     match /tables/{tableId} {
-      allow read: if isActiveStaff();
-      allow update: if isActiveStaff() && (
+      allow read: if isStaff();
+      allow update: if isStaff() && (
         isAdmin() ||
         (isWaiter() && (
-          // El mesero no puede forzar mesa a 'vacia' directamente (eso es facultad de cobro)
           request.resource.data.status != 'vacia' || resource.data.status == 'vacia'
         ))
       );
@@ -189,14 +159,14 @@ service cloud.firestore {
 
     // 5. Órdenes y Comandas (/orders)
     match /orders/{orderId} {
-      allow read: if isActiveStaff();
+      allow read: if isStaff();
 
       // INMUTABILIDAD ABSOLUTA: Una vez pagada, NINGÚN usuario puede editarla ni borrarla
-      allow update: if isActiveStaff() && (
+      allow update: if isStaff() && (
         resource.data.status != 'pagada' && (
           isAdmin() ||
           (isWaiter() && (
-            resource.data.waiterId == request.auth.uid &&
+            resource.data.waiterId == request.auth.token.email &&
             resource.data.status != 'cancelada' &&
             request.resource.data.status != 'pagada' &&
             request.resource.data.status != 'cancelada'
@@ -205,30 +175,23 @@ service cloud.firestore {
       );
 
       // Creación permitida a personal activo
-      allow create: if isActiveStaff() && (
+      allow create: if isStaff() && (
         request.resource.data.status == 'sin_imprimir' &&
         request.resource.data.items.size() > 0 &&
-        request.resource.data.waiterId == request.auth.uid
+        request.resource.data.waiterId == request.auth.token.email
       );
 
       // Eliminación física terminantemente PROHIBIDA para todos (incluyendo admin y dev)
       allow delete: if false;
     }
 
-    // 6. Directorio de Personal (/users)
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      // Solo admin o dev pueden crear/eliminar personal
-      allow create: if isAdmin() && (
-        // Garantizar que solo exista 1 admin (o dev creando el admin)
-        request.resource.data.role != 'admin' || isDeveloper()
-      );
-      allow delete: if isAdmin();
-      // Actualización de token de sesión única permitida al propio usuario
-      allow update: if isAuthenticated() && (
-        isAdmin() ||
-        (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentSessionId', 'lastLoginAt']))
-      );
+    // 6. Directorio de Personal Autorizado (/authorized_staff)
+    match /authorized_staff/{email} {
+      // Cada usuario puede leer su propio registro al autenticarse para verificar rol
+      allow read: if isAuthenticated() && (request.auth.token.email == email || isAdmin());
+      // Creación y actualización de personal: solo Admin o Developer
+      allow create, update: if isAdmin();
+      allow delete: if isDeveloper();
     }
   }
 }
