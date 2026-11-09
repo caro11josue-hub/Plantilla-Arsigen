@@ -61,7 +61,7 @@ service cloud.firestore {
     // ===============================================================
     match /config/{docId} {
       // Lectura pública: Necesaria para renderizar la carta digital al comensal
-      allow read: true;
+      allow read: if true;
       // Solo el Administrador o Desarrollador pueden editar configuración
       allow write: if isAdmin() || isDeveloper();
     }
@@ -71,7 +71,7 @@ service cloud.firestore {
     // ===============================================================
     match /categories/{categoryId} {
       // Lectura pública: El comensal consulta las categorías
-      allow read: true;
+      allow read: if true;
       // Escritura: Solo el Administrador o Desarrollador
       allow write: if isAdmin();
     }
@@ -81,7 +81,7 @@ service cloud.firestore {
     // ===============================================================
     match /menu_items/{itemId} {
       // Lectura pública: El comensal consulta la carta
-      allow read: true;
+      allow read: if true;
       // Escritura: Solo el Administrador o Desarrollador (precios, fotos, pausa de stock)
       allow write: if isAdmin();
     }
