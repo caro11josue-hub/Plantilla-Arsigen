@@ -17,6 +17,8 @@ export interface RestaurantOrder {
   tableId: string;
   tableNumber: number;
   isWaiterPersonalOrder: boolean;
+  isAddition?: boolean;
+  parentOrderId?: string;
   waiterId: string;
   waiterName: string;
   status: OrderStatus;

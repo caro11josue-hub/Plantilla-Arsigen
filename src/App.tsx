@@ -10,6 +10,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { CustomerMenuView } from './components/menu/CustomerMenuView';
 import { AdminMenuPanel } from './components/admin/AdminMenuPanel';
 import { WaiterModuleView } from './components/waiter/WaiterModuleView';
+import { CashierDashboard } from './components/cashier/CashierDashboard';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -28,7 +29,7 @@ import {
   Sliders,
 } from 'lucide-react';
 
-type ActiveViewMode = 'customer' | 'admin' | 'waiter' | 'matrix';
+type ActiveViewMode = 'customer' | 'admin' | 'cashier' | 'waiter' | 'matrix';
 
 export const App: React.FC = () => {
   const [config, setConfig] = useState<RestaurantConfig | null>(null);
@@ -131,6 +132,17 @@ export const App: React.FC = () => {
             Panel Admin
           </button>
           <button
+            onClick={() => setViewMode('cashier')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              viewMode === 'cashier'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Caja & POS
+          </button>
+          <button
             onClick={() => setViewMode('waiter')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
               viewMode === 'waiter'
@@ -211,6 +223,11 @@ export const App: React.FC = () => {
             config={config}
             currentPlan={currentPlan}
             onConfigUpdated={(newCfg) => setConfig(newCfg)}
+          />
+        ) : viewMode === 'cashier' ? (
+          <CashierDashboard
+            currentPlan={currentPlan}
+            config={config}
           />
         ) : viewMode === 'waiter' ? (
           <WaiterModuleView
