@@ -11,12 +11,12 @@ import {
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoPlaceholderForDevelopment',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'plantilla-arsigen.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'plantilla-arsigen',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'plantilla-arsigen.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:abcdef',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDJbJF1vme8cxnxwc_O2ud0rac2GFBLMTM',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'plantilla-de-prueba-bd5a1.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'plantilla-de-prueba-bd5a1',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'plantilla-de-prueba-bd5a1.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1045881568729',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1045881568729:web:0eb33c06a65fd9e1c06dc8',
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
