@@ -197,7 +197,17 @@ export function subscribeToAuthState(
     }
 
     try {
-      const { snap } = await fetchStaffDocFlexible(user.email);
+      let { snap } = await fetchStaffDocFlexible(user.email);
+
+      // Si no existe, verificar si es uno de los correos fundacionales para sembrar
+      if (!snap.exists()) {
+        const seeded = await ensureInitialStaffSeeded(user.email);
+        if (seeded) {
+          const recheck = await fetchStaffDocFlexible(user.email);
+          snap = recheck.snap;
+        }
+      }
+
       if (snap.exists()) {
         const staffData = snap.data() as AuthorizedStaff;
         if (staffData.active) {
@@ -205,8 +215,8 @@ export function subscribeToAuthState(
           return;
         }
       }
-    } catch {
-      // Error de lectura
+    } catch (err) {
+      console.warn('[authService] Error al verificar estado de personal:', err);
     }
 
     callback(null);

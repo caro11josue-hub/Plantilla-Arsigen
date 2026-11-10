@@ -22,6 +22,7 @@ import {
   LogOut,
   Flame,
   Users,
+  Loader2,
 } from 'lucide-react';
 
 type AdminViewTab = 'menu' | 'waiters' | 'cashier' | 'analytics' | 'customer';
@@ -31,10 +32,26 @@ export const App: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<PlanTier>('business');
   const [staffUser, setStaffUser] = useState<AuthorizedStaff | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [adminTab, setAdminTab] = useState<AdminViewTab>('menu');
-  const [waiterViewMode, setWaiterViewMode] = useState<'waiter' | 'customer'>('waiter');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [adminTab, setAdminTab] = useState<AdminViewTab>(() => {
+    const saved = sessionStorage.getItem('arsigen_admin_tab');
+    return (saved as AdminViewTab) || 'menu';
+  });
+  const [waiterViewMode, setWaiterViewMode] = useState<'waiter' | 'customer'>(() => {
+    const saved = sessionStorage.getItem('arsigen_waiter_mode');
+    return (saved as 'waiter' | 'customer') || 'waiter';
+  });
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Sincronizar pestañas activas en sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('arsigen_admin_tab', adminTab);
+  }, [adminTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem('arsigen_waiter_mode', waiterViewMode);
+  }, [waiterViewMode]);
 
   // Cargar configuración general del restaurante en tiempo real
   useEffect(() => {
@@ -48,11 +65,28 @@ export const App: React.FC = () => {
 
   // Escuchar estado de sesión autenticada con Google contra authorized_staff
   useEffect(() => {
+    let isSubscribed = true;
+
+    // Temporizador de seguridad para evitar pantallas congeladas si la red falla
+    const safetyTimer = setTimeout(() => {
+      if (isSubscribed) {
+        setIsAuthLoading(false);
+      }
+    }, 4500);
+
     const unsubscribe = subscribeToAuthState((staff) => {
+      if (!isSubscribed) return;
       setStaffUser(staff);
       setUserRole(staff?.role || null);
+      setIsAuthLoading(false);
+      clearTimeout(safetyTimer);
     });
-    return () => unsubscribe();
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   // Gatillo de sigilo: 3 clics rápidos sobre el logo (<1000ms) abren el modal de acceso de personal
@@ -81,10 +115,46 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem('arsigen_admin_tab');
+    sessionStorage.removeItem('arsigen_waiter_mode');
     await logout();
     setStaffUser(null);
     setUserRole(null);
   };
+
+  // PANTALLA DE CARGA ELEGANTE: Evita el glitch de flash de contenido no autenticado al recargar
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col items-center justify-center relative overflow-hidden select-none">
+        {/* Resplandor ambiental */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-600/15 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/3 -right-20 w-80 h-80 bg-orange-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-4">
+          <div className="relative mb-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center shadow-xl shadow-amber-500/25 animate-pulse">
+              <Flame className="w-9 h-9 text-white" />
+            </div>
+            <div className="absolute -inset-1 rounded-2xl bg-amber-500/20 blur-sm -z-10 animate-ping opacity-40" />
+          </div>
+
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide font-serif mb-1">
+            {config?.restaurantName || 'Bistró & Leña'}
+          </h1>
+          <p className="text-[11px] sm:text-xs text-amber-300/70 font-mono tracking-widest uppercase mb-6">
+            Fuego Sagrado & Tradición
+          </p>
+
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs text-slate-300 font-medium">
+            <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+            <span>Verificando perfil y permisos...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col relative selection:bg-amber-600/30 selection:text-amber-200">
@@ -252,6 +322,73 @@ export const App: React.FC = () => {
             </button>
           </div>
         </header>
+      )}
+
+      {/* Barra de navegación secundaria para móviles (Admin y Desarrollador) */}
+      {userRole && (userRole === 'admin' || userRole === 'developer') && (
+        <div className="md:hidden border-b border-amber-500/10 bg-[#0d1117]/95 px-3 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs sticky top-[53px] z-20 backdrop-blur-md">
+          <button
+            onClick={() => setAdminTab('menu')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+              adminTab === 'menu'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white bg-black/30'
+            }`}
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            Menú
+          </button>
+          {capabilities.allowWaiterModule && (
+            <button
+              onClick={() => setAdminTab('waiters')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+                adminTab === 'waiters'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-black/30'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Meseros
+            </button>
+          )}
+          {capabilities.allowKitchenComandas && (
+            <button
+              onClick={() => setAdminTab('cashier')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+                adminTab === 'cashier'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-black/30'
+              }`}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Caja & POS
+            </button>
+          )}
+          {capabilities.allowFinancialStats && (
+            <button
+              onClick={() => setAdminTab('analytics')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+                adminTab === 'analytics'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white bg-black/30'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Estadísticas
+            </button>
+          )}
+          <button
+            onClick={() => setAdminTab('customer')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
+              adminTab === 'customer'
+                ? 'bg-white/20 text-white shadow-md'
+                : 'text-slate-400 hover:text-white bg-black/30'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Carta
+          </button>
+        </div>
       )}
 
       {/* CONTENIDO PRINCIPAL: CONDICIONADO DE FORMA ESTRICTA POR ROL */}
