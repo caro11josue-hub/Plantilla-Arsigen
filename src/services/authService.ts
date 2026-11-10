@@ -25,8 +25,10 @@ googleProvider.setCustomParameters({
 // Semilla inicial segura para aprovisionamiento del primer inicio de sesión
 const INITIAL_STAFF_SEEDS: Record<string, { role: UserRole; name: string }> = {
   'caro11josue@gmail.com': { role: 'developer', name: 'Josué Caro (ARSIGEN)' },
+  'traduciones.os@gmail.com': { role: 'admin', name: 'Administrador General' },
   'traducciones.os@gmail.com': { role: 'admin', name: 'Administrador General' },
-  'vision.stream645@gmail.com': { role: 'waiter', name: 'Mesero Principal' },
+  'vision.stream.645@gmail.com': { role: 'waiter', name: 'Carlos (Mesero Salón)' },
+  'vision.stream645@gmail.com': { role: 'waiter', name: 'Carlos (Mesero Salón)' },
 };
 
 /**

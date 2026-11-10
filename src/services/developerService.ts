@@ -90,6 +90,8 @@ export async function listAuthorizedStaff(): Promise<AuthorizedStaff[]> {
 
 /**
  * Registra o actualiza un usuario en la whitelist /authorized_staff.
+ * Si es una cuenta de Gmail, registra de forma transparente la variación con y sin puntos
+ * para evitar bloqueos por discrepancias en la estructura del username de Google.
  */
 export async function saveAuthorizedStaffUser(
   email: string,
@@ -108,6 +110,17 @@ export async function saveAuthorizedStaffUser(
     lastLoginAt: null,
   };
   await setDoc(staffRef, data, { merge: true });
+
+  // Si es Gmail, registrar también el alias sin puntos para dot-insensitivity nativo
+  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
+    const [userPart, domain] = normalizedEmail.split('@');
+    const dotFreeUser = userPart.replace(/\./g, '');
+    const dotFreeEmail = `${dotFreeUser}@${domain}`;
+    if (dotFreeEmail !== normalizedEmail) {
+      const aliasRef = doc(db, 'authorized_staff', dotFreeEmail);
+      await setDoc(aliasRef, { ...data, email: dotFreeEmail }, { merge: true });
+    }
+  }
 }
 
 /**
@@ -120,6 +133,16 @@ export async function toggleAuthorizedStaffActive(
   const normalizedEmail = email.toLowerCase().trim();
   const staffRef = doc(db, 'authorized_staff', normalizedEmail);
   await updateDoc(staffRef, { active });
+
+  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
+    const [userPart, domain] = normalizedEmail.split('@');
+    const dotFreeUser = userPart.replace(/\./g, '');
+    const dotFreeEmail = `${dotFreeUser}@${domain}`;
+    if (dotFreeEmail !== normalizedEmail) {
+      const aliasRef = doc(db, 'authorized_staff', dotFreeEmail);
+      await updateDoc(aliasRef, { active }).catch(() => {});
+    }
+  }
 }
 
 /**
@@ -129,4 +152,14 @@ export async function deleteAuthorizedStaffUser(email: string): Promise<void> {
   const normalizedEmail = email.toLowerCase().trim();
   const staffRef = doc(db, 'authorized_staff', normalizedEmail);
   await deleteDoc(staffRef);
+
+  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
+    const [userPart, domain] = normalizedEmail.split('@');
+    const dotFreeUser = userPart.replace(/\./g, '');
+    const dotFreeEmail = `${dotFreeUser}@${domain}`;
+    if (dotFreeEmail !== normalizedEmail) {
+      const aliasRef = doc(db, 'authorized_staff', dotFreeEmail);
+      await deleteDoc(aliasRef).catch(() => {});
+    }
+  }
 }
