@@ -8,6 +8,7 @@ import { DeveloperModal } from './components/developer/DeveloperModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { CustomerMenuView } from './components/menu/CustomerMenuView';
 import { AdminMenuPanel } from './components/admin/AdminMenuPanel';
+import { AdminWaitersPanel } from './components/admin/AdminWaitersPanel';
 import { WaiterModuleView } from './components/waiter/WaiterModuleView';
 import { CashierDashboard } from './components/cashier/CashierDashboard';
 import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
@@ -20,9 +21,10 @@ import {
   Eye,
   LogOut,
   Flame,
+  Users,
 } from 'lucide-react';
 
-type AdminViewTab = 'menu' | 'cashier' | 'analytics' | 'customer';
+type AdminViewTab = 'menu' | 'waiters' | 'cashier' | 'analytics' | 'customer';
 
 export const App: React.FC = () => {
   const [config, setConfig] = useState<RestaurantConfig | null>(null);
@@ -143,6 +145,20 @@ export const App: React.FC = () => {
                 <UtensilsCrossed className="w-3.5 h-3.5" />
                 Gestión Menú
               </button>
+
+              {capabilities.allowWaiterModule && (
+                <button
+                  onClick={() => setAdminTab('waiters')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+                    adminTab === 'waiters'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Meseros
+                </button>
+              )}
 
               {capabilities.allowKitchenComandas && (
                 <button
@@ -269,6 +285,9 @@ export const App: React.FC = () => {
                 currentPlan={currentPlan}
                 onConfigUpdated={(newCfg) => setConfig(newCfg)}
               />
+            )}
+            {adminTab === 'waiters' && capabilities.allowWaiterModule && (
+              <AdminWaitersPanel />
             )}
             {adminTab === 'cashier' && capabilities.allowKitchenComandas && (
               <CashierDashboard config={config} currentPlan={currentPlan} />

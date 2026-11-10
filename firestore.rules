@@ -151,11 +151,18 @@ service cloud.firestore {
       );
 
       // Creación y actualización de personal:
-      // Administrador puede gestionar meseros; Desarrollador puede gestionar todo
-      allow create, update: if isAdmin();
+      // El Desarrollador puede gestionar cualquier rol.
+      // El Administrador SOLO puede crear y actualizar meseros (role == 'waiter').
+      allow create, update: if isDeveloper() || (
+        isAdmin() && request.resource.data.role == 'waiter'
+      );
 
-      // Eliminación de personal: Solo Desarrollador
-      allow delete: if isDeveloper();
+      // Eliminación de personal:
+      // El Desarrollador puede eliminar cualquier personal.
+      // El Administrador SOLO puede eliminar meseros (role == 'waiter').
+      allow delete: if isDeveloper() || (
+        isAdmin() && resource.data.role == 'waiter'
+      );
     }
 
     // Compatibilidad legado con colección /users si existiera

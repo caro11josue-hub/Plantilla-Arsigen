@@ -25,9 +25,7 @@ googleProvider.setCustomParameters({
 // Semilla inicial segura para aprovisionamiento del primer inicio de sesión
 const INITIAL_STAFF_SEEDS: Record<string, { role: UserRole; name: string }> = {
   'caro11josue@gmail.com': { role: 'developer', name: 'Josué Caro (ARSIGEN)' },
-  'traduciones.os@gmail.com': { role: 'admin', name: 'Administrador General' },
   'traducciones.os@gmail.com': { role: 'admin', name: 'Administrador General' },
-  'vision.stream.645@gmail.com': { role: 'waiter', name: 'Carlos (Mesero Salón)' },
   'vision.stream645@gmail.com': { role: 'waiter', name: 'Carlos (Mesero Salón)' },
 };
 
@@ -64,6 +62,34 @@ async function ensureInitialStaffSeeded(email: string): Promise<AuthorizedStaff 
   return null;
 }
 
+/**
+ * Busca de forma flexible un documento en authorized_staff por su correo exacto
+ * o por su variación de Gmail sin puntos, sin necesidad de duplicar registros en Firestore.
+ */
+async function fetchStaffDocFlexible(email: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const staffRef = doc(db, 'authorized_staff', normalizedEmail);
+  const snap = await getDoc(staffRef);
+
+  if (snap.exists()) {
+    return { ref: staffRef, snap };
+  }
+
+  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
+    const [userPart, domain] = normalizedEmail.split('@');
+    const dotFree = `${userPart.replace(/\./g, '')}@${domain}`;
+    if (dotFree !== normalizedEmail) {
+      const aliasRef = doc(db, 'authorized_staff', dotFree);
+      const aliasSnap = await getDoc(aliasRef);
+      if (aliasSnap.exists()) {
+        return { ref: aliasRef, snap: aliasSnap };
+      }
+    }
+  }
+
+  return { ref: staffRef, snap };
+}
+
 export interface AuthLoginResult {
   user: FirebaseUser;
   staff: AuthorizedStaff;
@@ -83,14 +109,15 @@ export async function loginWithGoogle(): Promise<AuthLoginResult> {
   }
 
   const normalizedEmail = user.email.toLowerCase().trim();
-  const staffRef = doc(db, 'authorized_staff', normalizedEmail);
-  let staffSnap = await getDoc(staffRef);
+  let { ref: staffRef, snap: staffSnap } = await fetchStaffDocFlexible(normalizedEmail);
 
   // Si no existe, verificar si es uno de los correos fundacionales para sembrar
   if (!staffSnap.exists()) {
     const seeded = await ensureInitialStaffSeeded(normalizedEmail);
     if (seeded) {
-      staffSnap = await getDoc(staffRef);
+      const recheck = await fetchStaffDocFlexible(normalizedEmail);
+      staffRef = recheck.ref;
+      staffSnap = recheck.snap;
     }
   }
 
@@ -137,10 +164,7 @@ export async function getCurrentStaff(): Promise<AuthorizedStaff | null> {
   if (!currentUser?.email) return null;
 
   try {
-    const normalizedEmail = currentUser.email.toLowerCase().trim();
-    const staffRef = doc(db, 'authorized_staff', normalizedEmail);
-    const snap = await getDoc(staffRef);
-
+    const { snap } = await fetchStaffDocFlexible(currentUser.email);
     if (snap.exists()) {
       const data = snap.data() as AuthorizedStaff;
       if (data.active) return data;
@@ -173,10 +197,7 @@ export function subscribeToAuthState(
     }
 
     try {
-      const normalizedEmail = user.email.toLowerCase().trim();
-      const staffRef = doc(db, 'authorized_staff', normalizedEmail);
-      const snap = await getDoc(staffRef);
-
+      const { snap } = await fetchStaffDocFlexible(user.email);
       if (snap.exists()) {
         const staffData = snap.data() as AuthorizedStaff;
         if (staffData.active) {

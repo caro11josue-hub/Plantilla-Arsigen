@@ -76,12 +76,29 @@ export async function provisionInitialRestaurant(customConfig?: Partial<Restaura
 
 /**
  * Lista todo el personal registrado en la colección /authorized_staff.
+ * Deduplica en memoria cualquier alias con/sin puntos para garantizar una lista limpia.
  */
 export async function listAuthorizedStaff(): Promise<AuthorizedStaff[]> {
   try {
     const staffCol = collection(db, 'authorized_staff');
     const snap = await getDocs(staffCol);
-    return snap.docs.map((d) => d.data() as AuthorizedStaff);
+    const seen = new Set<string>();
+    const uniqueStaff: AuthorizedStaff[] = [];
+
+    for (const d of snap.docs) {
+      const staff = d.data() as AuthorizedStaff;
+      const normalized = (staff.email || d.id).toLowerCase().trim();
+      const dotFree =
+        normalized.endsWith('@gmail.com') || normalized.endsWith('@googlemail.com')
+          ? `${normalized.split('@')[0].replace(/\./g, '')}@${normalized.split('@')[1]}`
+          : normalized;
+
+      if (!seen.has(dotFree)) {
+        seen.add(dotFree);
+        uniqueStaff.push(staff);
+      }
+    }
+    return uniqueStaff;
   } catch (err) {
     console.warn('[developerService] Error al listar personal:', err);
     return [];
@@ -89,38 +106,45 @@ export async function listAuthorizedStaff(): Promise<AuthorizedStaff[]> {
 }
 
 /**
+ * Lista exclusivamente a los meseros de salón (role === 'waiter') para el panel del Administrador.
+ */
+export async function listWaiters(): Promise<AuthorizedStaff[]> {
+  const all = await listAuthorizedStaff();
+  return all.filter((s) => s.role === 'waiter');
+}
+
+/**
  * Registra o actualiza un usuario en la whitelist /authorized_staff.
- * Si es una cuenta de Gmail, registra de forma transparente la variación con y sin puntos
- * para evitar bloqueos por discrepancias en la estructura del username de Google.
+ * Si se especifica previousEmail y este es distinto del nuevo email,
+ * elimina el documento del correo antiguo para que no quede huérfano ni duplicado.
  */
 export async function saveAuthorizedStaffUser(
   email: string,
   role: UserRole,
   name: string,
-  active: boolean = true
+  active: boolean = true,
+  previousEmail?: string
 ): Promise<void> {
   const normalizedEmail = email.toLowerCase().trim();
+
+  // Si se está corrigiendo un correo que estaba mal por uno bien, eliminar el antiguo
+  if (previousEmail) {
+    const normalizedPrev = previousEmail.toLowerCase().trim();
+    if (normalizedPrev !== normalizedEmail) {
+      await deleteAuthorizedStaffUser(normalizedPrev);
+    }
+  }
+
   const staffRef = doc(db, 'authorized_staff', normalizedEmail);
   const data: AuthorizedStaff = {
     email: normalizedEmail,
     role,
-    name,
+    name: name.trim(),
     active,
     assignedAt: new Date().toISOString(),
     lastLoginAt: null,
   };
   await setDoc(staffRef, data, { merge: true });
-
-  // Si es Gmail, registrar también el alias sin puntos para dot-insensitivity nativo
-  if (normalizedEmail.endsWith('@gmail.com') || normalizedEmail.endsWith('@googlemail.com')) {
-    const [userPart, domain] = normalizedEmail.split('@');
-    const dotFreeUser = userPart.replace(/\./g, '');
-    const dotFreeEmail = `${dotFreeUser}@${domain}`;
-    if (dotFreeEmail !== normalizedEmail) {
-      const aliasRef = doc(db, 'authorized_staff', dotFreeEmail);
-      await setDoc(aliasRef, { ...data, email: dotFreeEmail }, { merge: true });
-    }
-  }
 }
 
 /**
