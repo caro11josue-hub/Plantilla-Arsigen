@@ -1,68 +1,34 @@
 import React from 'react';
-import {
-  Utensils,
-  Pizza,
-  Coffee,
-  Beer,
-  Wine,
-  IceCream,
-  Salad,
-  Flame,
-  Soup,
-  Fish,
-  Beef,
-  Sandwich,
-  Sparkles,
-} from 'lucide-react';
+import { Utensils } from 'lucide-react';
+import { VECTOR_ICONS_MAP } from '../../config/icons.catalog';
 
 interface CategoryIconProps {
+  /**
+   * Identificador único del icono vectorial del catálogo (ej: 'flame', 'beef', 'pizza', 'wine')
+   */
   iconName: string;
   className?: string;
 }
 
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ iconName, className = 'w-5 h-5' }) => {
-  switch (iconName.toLowerCase()) {
-    case 'burger':
-    case 'hamburguesa':
-      return <Sandwich className={className} />;
-    case 'meat':
-    case 'carne':
-    case 'parrilla':
-    case 'bbq':
-      return <Beef className={className} />;
-    case 'flame':
-    case 'especial':
-      return <Flame className={className} />;
-    case 'pizza':
-      return <Pizza className={className} />;
-    case 'coffee':
-    case 'cafe':
-      return <Coffee className={className} />;
-    case 'drink':
-    case 'drinks':
-    case 'bebidas':
-      return <Wine className={className} />;
-    case 'beer':
-    case 'cerveza':
-      return <Beer className={className} />;
-    case 'dessert':
-    case 'postre':
-    case 'helado':
-      return <IceCream className={className} />;
-    case 'salad':
-    case 'ensalada':
-      return <Salad className={className} />;
-    case 'soup':
-    case 'sopa':
-      return <Soup className={className} />;
-    case 'fish':
-    case 'mariscos':
-    case 'pescado':
-      return <Fish className={className} />;
-    case 'all':
-    case 'todo':
-      return <Sparkles className={className} />;
-    default:
-      return <Utensils className={className} />;
-  }
+/**
+ * Componente que renderiza un icono vectorial SVG a partir de su ID en el catálogo.
+ * Mantiene la separación de entidades: un icono es un recurso visual gráfico,
+ * mientras que la categoría es una entidad del menú que referencia dicho icono.
+ */
+export const CategoryIcon: React.FC<CategoryIconProps> = ({
+  iconName,
+  className = 'w-5 h-5',
+}) => {
+  const normalizedId = (iconName || '').toLowerCase().trim();
+
+  // Mapeo retrocompatible de claves heredadas hacia IDs canónicos del catálogo
+  let canonicalId = normalizedId;
+  if (normalizedId === 'all') canonicalId = 'sparkles';
+  if (normalizedId === 'drinks') canonicalId = 'wine';
+  if (normalizedId === 'burger') canonicalId = 'sandwich';
+  if (normalizedId === 'meat') canonicalId = 'beef';
+
+  const IconComponent = VECTOR_ICONS_MAP[canonicalId] || Utensils;
+
+  return <IconComponent className={className} />;
 };

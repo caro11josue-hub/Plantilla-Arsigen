@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { PlanTier, RestaurantConfig, AuthorizedStaff, UserRole } from '../domain/models';
 
@@ -108,4 +108,25 @@ export async function saveAuthorizedStaffUser(
     lastLoginAt: null,
   };
   await setDoc(staffRef, data, { merge: true });
+}
+
+/**
+ * Activa o desactiva a un usuario del personal.
+ */
+export async function toggleAuthorizedStaffActive(
+  email: string,
+  active: boolean
+): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const staffRef = doc(db, 'authorized_staff', normalizedEmail);
+  await updateDoc(staffRef, { active });
+}
+
+/**
+ * Elimina permanentemente a un usuario de /authorized_staff.
+ */
+export async function deleteAuthorizedStaffUser(email: string): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const staffRef = doc(db, 'authorized_staff', normalizedEmail);
+  await deleteDoc(staffRef);
 }

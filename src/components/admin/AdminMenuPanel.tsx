@@ -21,12 +21,10 @@ import {
   Edit2,
   Trash2,
   Layers,
-  Star,
   Search,
   AlertTriangle,
   Lock,
   Sparkles,
-  CheckCircle2,
   Share2,
 } from 'lucide-react';
 
@@ -127,11 +125,11 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div>
           <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-blue-400" />
+            <Sparkles className="w-6 h-6 text-amber-400" />
             Panel de Administración de Menú
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Control de disponibilidad, precios netos e imágenes de platos en tiempo real.
+            Control de categorías, platos, precios netos y disponibilidad en tiempo real respaldados en Cloud Firestore.
           </p>
         </div>
 
@@ -151,10 +149,10 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
               setEditingCategory(null);
               setIsCategoryModalOpen(true);
             }}
-            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-2 transition-colors"
+            className="px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-semibold text-amber-300 flex items-center gap-2 transition-colors"
           >
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <span>Categorías ({categories.length})</span>
+            <Layers className="w-4 h-4 text-amber-400" />
+            <span>Nueva Categoría</span>
           </button>
 
           <button
@@ -163,7 +161,7 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
               setIsProductModalOpen(true);
             }}
             disabled={isLimitReached}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all disabled:opacity-50"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-500/30 flex items-center gap-2 transition-all disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>Nuevo Plato</span>
@@ -175,7 +173,7 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-white/10 text-xs gap-3">
         <div className="flex items-center gap-2 text-slate-300">
           <span className="font-semibold text-white uppercase tracking-wider">Capacidad del Plan {currentPlan}:</span>
-          <span className="font-mono text-cyan-400 font-bold">
+          <span className="font-mono text-amber-400 font-bold">
             {items.length} / {capabilities.maxProducts === 9999 ? 'Ilimitados' : `${capabilities.maxProducts} platos`}
           </span>
         </div>
@@ -188,7 +186,7 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
         )}
       </div>
 
-      {/* Filtros: Búsqueda y Categorías */}
+      {/* Filtros: Búsqueda y Categorías con Edición Directa */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -197,7 +195,7 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filtrar por nombre o ingredientes..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
           />
         </div>
 
@@ -206,26 +204,60 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
             onClick={() => setSelectedCategoryId(null)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
               selectedCategoryId === null
-                ? 'bg-blue-600 text-white'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                 : 'bg-white/5 text-slate-300 hover:bg-white/10'
             }`}
           >
             Todas
           </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCategoryId(c.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${
-                selectedCategoryId === c.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <CategoryIcon iconName={c.iconSvgName} className="w-3.5 h-3.5" />
-              <span>{c.name}</span>
-            </button>
-          ))}
+
+          {categories.map((c) => {
+            const isSelected = selectedCategoryId === c.id;
+            return (
+              <div key={c.id} className="flex items-center shrink-0">
+                <button
+                  onClick={() => setSelectedCategoryId(c.id)}
+                  className={`px-3 py-1.5 rounded-l-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+                    isSelected
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <CategoryIcon iconName={c.iconSvgName} className="w-3.5 h-3.5" />
+                  <span>{c.name}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingCategory(c);
+                    setIsCategoryModalOpen(true);
+                  }}
+                  title={`Editar o eliminar categoría "${c.name}"`}
+                  className={`px-2 py-1.5 rounded-r-xl border-l border-white/10 text-xs transition-colors ${
+                    isSelected
+                      ? 'bg-amber-700 text-amber-200 hover:bg-amber-800'
+                      : 'bg-white/5 text-slate-400 hover:text-amber-400 hover:bg-white/10'
+                  }`}
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingCategory(null);
+              setIsCategoryModalOpen(true);
+            }}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors shrink-0"
+            title="Crear nueva categoría"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Categoría</span>
+          </button>
         </div>
       </div>
 
@@ -252,7 +284,7 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
                   <div className="text-[11px] text-slate-400 truncate mt-0.5">
                     {cat?.name || 'General'}
                   </div>
-                  <div className="text-xs font-black text-cyan-400 font-mono mt-1">
+                  <div className="text-xs font-black text-amber-400 font-mono mt-1">
                     {formatCurrency(item.price)}
                   </div>
                 </div>
@@ -321,6 +353,9 @@ export const AdminMenuPanel: React.FC<AdminMenuPanelProps> = ({
         }}
         onDelete={async (catId) => {
           await deleteCategory(catId);
+          if (selectedCategoryId === catId) {
+            setSelectedCategoryId(null);
+          }
         }}
       />
 
